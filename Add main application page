@@ -1,0 +1,9 @@
+
+export default function Home() {
+  return (
+    <main style={{ padding: 24 }}>
+      <h1>Satu Restoe Management System</h1>
+      <p>Project berhasil terhubung.</p>
+    </main>
+  );
+}

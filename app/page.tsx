@@ -1,18 +1,43 @@
+"use client";
 
-{"use client";
+import Link from "next/link";
 
-import { useState } from "react";
-
-const menus = [
-  "HPP & Harga Jual",
-  "Banquet Order",
-  "Barang Terpakai",
-  "Laporan Kasir",
+const modules = [
+  {
+    title: "HPP & Harga Jual",
+    description:
+      "Kelola bahan, resep, harga pokok produksi, harga jual, dan margin keuntungan.",
+    href: "/hpp",
+    icon: "🧮",
+    color: "#ecfdf3",
+  },
+  {
+    title: "Banquet Order",
+    description:
+      "Catat pesanan rombongan, gathering, study tour, dan acara restoran.",
+    href: "/banquet",
+    icon: "📋",
+    color: "#eff6ff",
+  },
+  {
+    title: "Barang Terpakai",
+    description:
+      "Catat penggunaan bahan dan barang berdasarkan tanggal atau acara.",
+    href: "/barang-terpakai",
+    icon: "📦",
+    color: "#fff7ed",
+  },
+  {
+    title: "Laporan Kasir",
+    description:
+      "Catat omzet tunai, transfer, QRIS, pengeluaran, dan sisa omzet.",
+    href: "/laporan-kasir",
+    icon: "💰",
+    color: "#f5f3ff",
+  },
 ];
 
 export default function Home() {
-  const [activeMenu, setActiveMenu] = useState("HPP & Harga Jual");
-
   return (
     <main
       style={{
@@ -32,164 +57,169 @@ export default function Home() {
         <header
           style={{
             background: "#ffffff",
-            borderRadius: "16px",
-            padding: "24px",
-            marginBottom: "20px",
+            borderRadius: "18px",
+            padding: "28px",
+            marginBottom: "24px",
             boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
           }}
         >
-          <h1
+          <div
             style={{
-              margin: 0,
-              fontSize: "28px",
-              color: "#0f766e",
+              display: "flex",
+              alignItems: "center",
+              gap: "14px",
+              flexWrap: "wrap",
             }}
           >
-            Satu Restoe Management System
-          </h1>
-
-          <p
-            style={{
-              margin: "10px 0 0",
-              color: "#667085",
-            }}
-          >
-            Sistem manajemen internal Satu Restoe Pangandaran
-          </p>
-        </header>
-
-        <nav
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "10px",
-            marginBottom: "20px",
-          }}
-        >
-          {menus.map((menu) => (
-            <button
-              key={menu}
-              onClick={() => setActiveMenu(menu)}
+            <div
               style={{
-                border: "none",
-                borderRadius: "10px",
-                padding: "12px 16px",
-                cursor: "pointer",
-                background:
-                  activeMenu === menu ? "#0f766e" : "#ffffff",
-                color:
-                  activeMenu === menu ? "#ffffff" : "#344054",
-                fontWeight: 600,
-                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                width: "58px",
+                height: "58px",
+                borderRadius: "16px",
+                background: "#0f766e",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "30px",
+                fontWeight: "bold",
               }}
             >
-              {menu}
-            </button>
-          ))}
-        </nav>
+              S
+            </div>
+
+            <div>
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: "30px",
+                  color: "#0f766e",
+                }}
+              >
+                Satu Restoe Management System
+              </h1>
+
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: "#667085",
+                  fontSize: "15px",
+                }}
+              >
+                Sistem manajemen internal Satu Restoe Pangandaran
+              </p>
+            </div>
+          </div>
+        </header>
 
         <section
           style={{
-            background: "#ffffff",
-            borderRadius: "16px",
-            padding: "24px",
-            minHeight: "300px",
-            boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
+            marginBottom: "24px",
           }}
         >
           <h2
             style={{
-              marginTop: 0,
-              color: "#0f766e",
+              margin: "0 0 8px",
+              color: "#172033",
+              fontSize: "23px",
             }}
           >
-            {activeMenu}
+            Dashboard Utama
           </h2>
 
-          {activeMenu === "HPP & Harga Jual" && (
-            <div>
-              <p>
-                Modul untuk menghitung harga pokok produksi dan harga jual
-                menu Satu Restoe.
-              </p>
+          <p
+            style={{
+              margin: 0,
+              color: "#667085",
+            }}
+          >
+            Pilih modul yang ingin digunakan.
+          </p>
+        </section>
 
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: "18px",
+          }}
+        >
+          {modules.map((module) => (
+            <Link
+              key={module.href}
+              href={module.href}
+              style={{
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(220px, 1fr))",
-                  gap: "16px",
-                  marginTop: "20px",
+                  background: "#ffffff",
+                  borderRadius: "18px",
+                  padding: "24px",
+                  minHeight: "220px",
+                  boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
+                  border: "1px solid #eaecf0",
+                  transition: "transform 0.2s ease",
                 }}
               >
                 <div
                   style={{
-                    padding: "18px",
-                    borderRadius: "12px",
-                    background: "#ecfdf3",
+                    width: "58px",
+                    height: "58px",
+                    borderRadius: "16px",
+                    background: module.color,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "28px",
+                    marginBottom: "18px",
                   }}
                 >
-                  <strong>Data Bahan</strong>
-                  <p>Kelola bahan dan harga pembelian.</p>
+                  {module.icon}
                 </div>
+
+                <h3
+                  style={{
+                    margin: "0 0 10px",
+                    color: "#0f766e",
+                    fontSize: "20px",
+                  }}
+                >
+                  {module.title}
+                </h3>
+
+                <p
+                  style={{
+                    margin: 0,
+                    color: "#667085",
+                    lineHeight: 1.6,
+                    fontSize: "14px",
+                  }}
+                >
+                  {module.description}
+                </p>
 
                 <div
                   style={{
-                    padding: "18px",
-                    borderRadius: "12px",
-                    background: "#eff6ff",
+                    marginTop: "20px",
+                    color: "#0f766e",
+                    fontWeight: 700,
+                    fontSize: "14px",
                   }}
                 >
-                  <strong>Resep Menu</strong>
-                  <p>Hitung HPP berdasarkan komposisi resep.</p>
-                </div>
-
-                <div
-                  style={{
-                    padding: "18px",
-                    borderRadius: "12px",
-                    background: "#fff7ed",
-                  }}
-                >
-                  <strong>Harga Jual</strong>
-                  <p>Tentukan harga jual dan margin keuntungan.</p>
+                  Buka Modul →
                 </div>
               </div>
-            </div>
-          )}
-
-          {activeMenu === "Banquet Order" && (
-            <div>
-              <p>
-                Modul pencatatan pesanan banquet, rombongan, gathering,
-                study tour, dan acara restoran.
-              </p>
-            </div>
-          )}
-
-          {activeMenu === "Barang Terpakai" && (
-            <div>
-              <p>
-                Modul pencatatan penggunaan bahan dan barang terpakai
-                berdasarkan tanggal atau acara.
-              </p>
-            </div>
-          )}
-
-          {activeMenu === "Laporan Kasir" && (
-            <div>
-              <p>
-                Modul laporan omzet kasir, pembayaran tunai, transfer,
-                QRIS, pengeluaran, dan sisa omzet.
-              </p>
-            </div>
-          )}
+            </Link>
+          ))}
         </section>
 
         <footer
           style={{
             textAlign: "center",
-            marginTop: "24px",
+            marginTop: "35px",
             color: "#98a2b3",
             fontSize: "13px",
           }}

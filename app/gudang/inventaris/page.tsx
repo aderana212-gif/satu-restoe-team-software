@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "../../../lib/supabase";
 
 type Aset = {
-  id: number;
+  id: string;
   nama: string;
   kategori: string;
   jumlah: number;
   satuan: string;
   kondisi: string;
   lokasi: string;
-  catatan: string;
+  keterangan: string;
 };
 
 export default function InventarisPage() {
@@ -20,41 +21,44 @@ export default function InventarisPage() {
   const [kategori, setKategori] = useState("Peralatan makan");
   const [jumlah, setJumlah] = useState("");
   const [satuan, setSatuan] = useState("Pcs");
-  const [kondisi, setKondisi] = useState("Baik");
+  const [kondisi, setKondisi] = useState("baik");
   const [lokasi, setLokasi] = useState("");
   const [catatan, setCatatan] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  function simpanAset() {
-    if (!nama.trim() || !jumlah || Number(jumlah) < 0) {
+  async function loadData() {
+    setLoading(true);
+    const { data, error: loadError } = await supabase.from("gudang_inventaris").select("id,nama,kategori,jumlah,satuan,kondisi,lokasi,keterangan").eq("aktif", true).order("nama");
+    if (loadError) setError(loadError.message);
+    else setAset((data || []) as Aset[]);
+    setLoading(false);
+  }
+
+  useEffect(() => { loadData(); }, []);
+
+  async function simpanAset() {
+    if (!nama.trim() || jumlah === "" || Number(jumlah) < 0) {
       alert("Nama barang dan jumlah wajib diisi.");
       return;
     }
-
-    setAset((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        nama: nama.trim(),
-        kategori,
-        jumlah: Number(jumlah),
-        satuan,
-        kondisi,
-        lokasi,
-        catatan,
-      },
-    ]);
-
-    setNama("");
-    setJumlah("");
-    setLokasi("");
-    setCatatan("");
-    setShowForm(false);
+    setSaving(true);
+    const { error: insertError } = await supabase.from("gudang_inventaris").insert({
+      nama: nama.trim(), kategori, jumlah: Number(jumlah), satuan, kondisi,
+      lokasi: lokasi.trim() || null, keterangan: catatan.trim() || null,
+    });
+    setSaving(false);
+    if (insertError) { alert(insertError.message); return; }
+    setNama(""); setJumlah(""); setLokasi(""); setCatatan(""); setShowForm(false);
+    await loadData();
   }
 
-  function hapusAset(id: number) {
-    if (window.confirm("Hapus inventaris ini?")) {
-      setAset((prev) => prev.filter((item) => item.id !== id));
-    }
+  async function hapusAset(id: string) {
+    if (!window.confirm("Hapus inventaris ini?")) return;
+    const { error: deleteError } = await supabase.from("gudang_inventaris").update({ aktif: false }).eq("id", id);
+    if (deleteError) alert(deleteError.message);
+    else await loadData();
   }
 
   return (
@@ -63,41 +67,32 @@ export default function InventarisPage() {
         <a href="/gudang" style={backLinkStyle}>← Kembali ke Gudang & Inventaris</a>
         <section style={sectionStyle}>
           <div style={headerStyle}>
-            <div>
-              <h1 style={titleStyle}>Inventaris</h1>
-              <p style={descriptionStyle}>Catat jumlah dan kondisi perlengkapan Satu Restoe.</p>
-            </div>
+            <div><h1 style={titleStyle}>Inventaris</h1><p style={descriptionStyle}>Data tersimpan di database Gudang mandiri.</p></div>
             <button onClick={() => setShowForm((value) => !value)} style={primaryButtonStyle}>+ Tambah Inventaris</button>
           </div>
-
-          {showForm && (
-            <div style={formPanelStyle}>
-              <h2 style={formTitleStyle}>Tambah Inventaris</h2>
-              <div style={formGridStyle}>
-                <Field label="Nama barang *"><input value={nama} onChange={(e) => setNama(e.target.value)} placeholder="Contoh: Piring makan" style={inputStyle} /></Field>
-                <Field label="Kategori"><select value={kategori} onChange={(e) => setKategori(e.target.value)} style={inputStyle}><option>Peralatan makan</option><option>Sound system</option><option>Kabel & lampu</option><option>Perlengkapan resto</option><option>Lainnya</option></select></Field>
-                <Field label="Jumlah *"><input type="number" min="0" value={jumlah} onChange={(e) => setJumlah(e.target.value)} style={inputStyle} /></Field>
-                <Field label="Satuan"><select value={satuan} onChange={(e) => setSatuan(e.target.value)} style={inputStyle}><option>Pcs</option><option>Set</option><option>Unit</option><option>Box</option><option>Meter</option></select></Field>
-                <Field label="Kondisi"><select value={kondisi} onChange={(e) => setKondisi(e.target.value)} style={inputStyle}><option>Baik</option><option>Rusak ringan</option><option>Rusak berat</option><option>Hilang</option></select></Field>
-                <Field label="Lokasi"><input value={lokasi} onChange={(e) => setLokasi(e.target.value)} placeholder="Contoh: Gudang utama" style={inputStyle} /></Field>
-                <Field label="Catatan"><input value={catatan} onChange={(e) => setCatatan(e.target.value)} placeholder="Catatan tambahan" style={inputStyle} /></Field>
-              </div>
-              <button onClick={simpanAset} style={primaryButtonStyle}>Simpan Inventaris</button>
+          {error && <div style={errorStyle}>{error}</div>}
+          {showForm && <div style={formPanelStyle}>
+            <h2 style={formTitleStyle}>Tambah Inventaris</h2>
+            <div style={formGridStyle}>
+              <Field label="Nama barang *"><input value={nama} onChange={(e) => setNama(e.target.value)} placeholder="Contoh: Piring makan" style={inputStyle} /></Field>
+              <Field label="Kategori"><select value={kategori} onChange={(e) => setKategori(e.target.value)} style={inputStyle}><option>Peralatan makan</option><option>Sound system</option><option>Kabel & lampu</option><option>Perlengkapan resto</option><option>Lainnya</option></select></Field>
+              <Field label="Jumlah *"><input type="number" min="0" value={jumlah} onChange={(e) => setJumlah(e.target.value)} style={inputStyle} /></Field>
+              <Field label="Satuan"><select value={satuan} onChange={(e) => setSatuan(e.target.value)} style={inputStyle}><option>Pcs</option><option>Set</option><option>Unit</option><option>Box</option><option>Meter</option></select></Field>
+              <Field label="Kondisi"><select value={kondisi} onChange={(e) => setKondisi(e.target.value)} style={inputStyle}><option value="baik">Baik</option><option value="rusak_ringan">Rusak ringan</option><option value="rusak_berat">Rusak berat</option><option value="hilang">Hilang</option></select></Field>
+              <Field label="Lokasi"><input value={lokasi} onChange={(e) => setLokasi(e.target.value)} placeholder="Contoh: Gudang utama" style={inputStyle} /></Field>
+              <Field label="Catatan"><input value={catatan} onChange={(e) => setCatatan(e.target.value)} placeholder="Catatan tambahan" style={inputStyle} /></Field>
             </div>
-          )}
-
+            <button disabled={saving} onClick={simpanAset} style={primaryButtonStyle}>{saving ? "Menyimpan..." : "Simpan Inventaris"}</button>
+          </div>}
           <div style={statStyle}><div style={statLabelStyle}>Total Jenis Inventaris</div><strong style={statValueStyle}>{aset.length}</strong></div>
-
-          <div style={tableWrapperStyle}>
-            <h2 style={tableHeaderStyle}>Daftar Inventaris</h2>
-            {aset.length === 0 ? <div style={emptyStateStyle}>Belum ada data inventaris. Tambahkan barang pertama.</div> : <table style={tableStyle}><thead><tr><th style={thStyle}>No</th><th style={thStyle}>Nama Barang</th><th style={thStyle}>Kategori</th><th style={thStyle}>Jumlah</th><th style={thStyle}>Kondisi</th><th style={thStyle}>Lokasi</th><th style={thStyle}>Catatan</th><th style={thStyle}>Aksi</th></tr></thead><tbody>{aset.map((item, index) => <tr key={item.id}><td style={tdStyle}>{index + 1}</td><td style={tdStyle}>{item.nama}</td><td style={tdStyle}>{item.kategori}</td><td style={tdStyle}>{item.jumlah} {item.satuan}</td><td style={tdStyle}>{item.kondisi}</td><td style={tdStyle}>{item.lokasi || "-"}</td><td style={tdStyle}>{item.catatan || "-"}</td><td style={tdStyle}><button onClick={() => hapusAset(item.id)} style={deleteButtonStyle}>Hapus</button></td></tr>)}</tbody></table>}
-          </div>
+          <div style={tableWrapperStyle}><h2 style={tableHeaderStyle}>Daftar Inventaris</h2>{loading ? <div style={emptyStateStyle}>Memuat data...</div> : aset.length === 0 ? <div style={emptyStateStyle}>Belum ada data inventaris. Tambahkan barang pertama.</div> : <table style={tableStyle}><thead><tr><th style={thStyle}>No</th><th style={thStyle}>Nama Barang</th><th style={thStyle}>Kategori</th><th style={thStyle}>Jumlah</th><th style={thStyle}>Kondisi</th><th style={thStyle}>Lokasi</th><th style={thStyle}>Catatan</th><th style={thStyle}>Aksi</th></tr></thead><tbody>{aset.map((item, index) => <tr key={item.id}><td style={tdStyle}>{index + 1}</td><td style={tdStyle}>{item.nama}</td><td style={tdStyle}>{item.kategori || "-"}</td><td style={tdStyle}>{Number(item.jumlah)} {item.satuan}</td><td style={tdStyle}>{formatKondisi(item.kondisi)}</td><td style={tdStyle}>{item.lokasi || "-"}</td><td style={tdStyle}>{item.keterangan || "-"}</td><td style={tdStyle}><button onClick={() => hapusAset(item.id)} style={deleteButtonStyle}>Hapus</button></td></tr>)}</tbody></table>}</div>
         </section>
       </div>
     </main>
   );
 }
 
+function formatKondisi(value: string) { return ({ baik: "Baik", rusak_ringan: "Rusak ringan", rusak_berat: "Rusak berat", hilang: "Hilang" } as Record<string, string>)[value] || value; }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label style={fieldLabelStyle}><span style={labelStyle}>{label}</span>{children}</label>; }
 
 const pageStyle = { minHeight: "100vh", background: "#f5f7fa", padding: "24px", color: "#243047" };
@@ -124,3 +119,4 @@ const tableStyle = { width: "100%", borderCollapse: "collapse" as const, minWidt
 const thStyle = { textAlign: "left" as const, padding: "13px", borderBottom: "1px solid #e5e9ef", color: "#39465a", fontSize: "13px" };
 const tdStyle = { padding: "13px", borderBottom: "1px solid #edf0f3", color: "#4b5565", fontSize: "14px" };
 const deleteButtonStyle = { background: "#fee2e2", color: "#b91c1c", border: 0, borderRadius: "8px", padding: "8px 12px", cursor: "pointer", fontWeight: 700 };
+const errorStyle = { marginTop: "20px", padding: "14px", borderRadius: "10px", background: "#fee2e2", color: "#991b1b" };

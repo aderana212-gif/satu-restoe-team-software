@@ -22,7 +22,7 @@ const modules = [
   {
     title: "Barang Terpakai",
     description:
-      "Catat penggunaan bahan dan barang berdasarkan tanggal atau acara.",
+      "Catat barang yang masih tersisa setelah event atau acara selesai, lengkap dengan jumlah, kondisi, dan catatan.",
     href: "/barang-terpakai",
     icon: "📦",
     color: "#fff7ed",
@@ -48,12 +48,7 @@ export default function Home() {
         fontFamily: "Arial, sans-serif",
       }}
     >
-      <div
-        style={{
-          maxWidth: "1100px",
-          margin: "0 auto",
-        }}
-      >
+      <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
         <header
           style={{
             background: "#ffffff",
@@ -87,52 +82,22 @@ export default function Home() {
             >
               S
             </div>
-
             <div>
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: "30px",
-                  color: "#0f766e",
-                }}
-              >
-                Satu Restoe Management System
+              <h1 style={{ margin: 0, fontSize: "30px", color: "#0f766e" }}>
+                Satu Restoe Team Software
               </h1>
-
-              <p
-                style={{
-                  margin: "8px 0 0",
-                  color: "#667085",
-                  fontSize: "15px",
-                }}
-              >
-                Sistem manajemen internal Satu Restoe Pangandaran
+              <p style={{ margin: "8px 0 0", color: "#667085", fontSize: "15px" }}>
+                Sistem kerja internal tim Satu Restoe Pangandaran
               </p>
             </div>
           </div>
         </header>
 
-        <section
-          style={{
-            marginBottom: "24px",
-          }}
-        >
-          <h2
-            style={{
-              margin: "0 0 8px",
-              color: "#172033",
-              fontSize: "23px",
-            }}
-          >
+        <section style={{ marginBottom: "24px" }}>
+          <h2 style={{ margin: "0 0 8px", color: "#172033", fontSize: "23px" }}>
             Dashboard Utama
           </h2>
-
-          <p
-            style={{
-              margin: 0,
-              color: "#667085",
-            }}
-          >
+          <p style={{ margin: 0, color: "#667085" }}>
             Pilih modul yang ingin digunakan.
           </p>
         </section>
@@ -145,14 +110,7 @@ export default function Home() {
           }}
         >
           {modules.map((module) => (
-            <Link
-              key={module.href}
-              href={module.href}
-              style={{
-                textDecoration: "none",
-                color: "inherit",
-              }}
-            >
+            <Link key={module.href} href={module.href} style={{ textDecoration: "none", color: "inherit" }}>
               <div
                 style={{
                   background: "#ffffff",
@@ -161,7 +119,6 @@ export default function Home() {
                   minHeight: "220px",
                   boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
                   border: "1px solid #eaecf0",
-                  transition: "transform 0.2s ease",
                 }}
               >
                 <div
@@ -179,36 +136,13 @@ export default function Home() {
                 >
                   {module.icon}
                 </div>
-
-                <h3
-                  style={{
-                    margin: "0 0 10px",
-                    color: "#0f766e",
-                    fontSize: "20px",
-                  }}
-                >
+                <h3 style={{ margin: "0 0 10px", color: "#0f766e", fontSize: "20px" }}>
                   {module.title}
                 </h3>
-
-                <p
-                  style={{
-                    margin: 0,
-                    color: "#667085",
-                    lineHeight: 1.6,
-                    fontSize: "14px",
-                  }}
-                >
+                <p style={{ margin: 0, color: "#667085", lineHeight: 1.6, fontSize: "14px" }}>
                   {module.description}
                 </p>
-
-                <div
-                  style={{
-                    marginTop: "20px",
-                    color: "#0f766e",
-                    fontWeight: 700,
-                    fontSize: "14px",
-                  }}
-                >
+                <div style={{ marginTop: "20px", color: "#0f766e", fontWeight: 700, fontSize: "14px" }}>
                   Buka Modul →
                 </div>
               </div>
@@ -216,14 +150,7 @@ export default function Home() {
           ))}
         </section>
 
-        <footer
-          style={{
-            textAlign: "center",
-            marginTop: "35px",
-            color: "#98a2b3",
-            fontSize: "13px",
-          }}
-        >
+        <footer style={{ textAlign: "center", marginTop: "35px", color: "#98a2b3", fontSize: "13px" }}>
           Satu Restoe Team Software © 2026
         </footer>
       </div>

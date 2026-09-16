@@ -1,9 +1,8 @@
-import type { Metadata } from "next";
 import "./globals.css";
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "Satu Restoe Team Software",
-  description: "Sistem manajemen internal Satu Restoe Pangandaran",
+  description: "Sistem manajemen internal Satu Restoe",
 };
 
 export default function RootLayout({

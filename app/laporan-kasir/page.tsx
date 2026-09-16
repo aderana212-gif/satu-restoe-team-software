@@ -1,8 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 
 type Expense = { id: number; description: string; amount: number };
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
 
 export default function LaporanKasirPage() {
   const [date, setDate] = useState("");
@@ -15,6 +23,7 @@ export default function LaporanKasirPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [expenseDescription, setExpenseDescription] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const cash = Number(cashOmzet) || 0;
   const transfer = Number(transferOmzet) || 0;
@@ -49,34 +58,46 @@ export default function LaporanKasirPage() {
     const expenseLines = expenses.length
       ? expenses.map((expense, index) => `${index + 1}. ${expense.description} : ${formatRupiah(expense.amount)}`).join("\n")
       : "-";
-
     return `LAPORAN KASIR\nSATU RESTOE\n\nHari/Tanggal : ${formatTanggal(date)}\nPetugas : ${cashier || "-"}\n\nRINCIAN OMZET\nOmzet Tunai : ${formatRupiah(cash)}\nTransfer : ${formatRupiah(transfer)}\nQRIS : ${formatRupiah(qris)}\nTotal Kotor : ${formatRupiah(totalOmzet)}\n\nDiskon : ${formatRupiah(discountValue)}\nTTD/Compliment : ${formatRupiah(complimentValue)}\nOmzet Bersih : ${formatRupiah(realOmzet)}\n\nPENGELUARAN KAS\n${expenseLines}\n\nTotal Pengeluaran : ${formatRupiah(totalExpense)}\nSisa Omzet : ${formatRupiah(remainingOmzet)}\n\nCatatan: -`;
   }
 
-  function saveReport() {
+  async function saveReport() {
     if (!date || !cashier) {
       alert("Isi tanggal dan nama kasir terlebih dahulu.");
       return;
     }
-    const report = { id: Date.now(), date, cashier, cashOmzet: cash, transferOmzet: transfer, qrisOmzet: qris, discount: discountValue, compliment: complimentValue, expenses, totalOmzet, realOmzet, totalExpense, remainingOmzet };
-    try {
-      const saved = JSON.parse(localStorage.getItem("satu-restoe-cashier-reports") || "[]");
-      localStorage.setItem("satu-restoe-cashier-reports", JSON.stringify([...saved, report]));
-      alert("Laporan berhasil disimpan di perangkat ini.");
-    } catch {
-      alert("Laporan belum dapat disimpan di browser ini.");
+    const supabase = getSupabase();
+    if (!supabase) {
+      alert("Connection Supabase belum tersedia. Silakan isi NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_ANON_KEY di Vercel.");
+      return;
     }
+    setSaving(true);
+    const { error } = await supabase.from("laporan_kasir").insert({
+      tanggal: date,
+      petugas: cashier,
+      omzet_tunai: cash,
+      omzet_transfer: transfer,
+      omzet_qris: qris,
+      diskon: discountValue,
+      compliment: complimentValue,
+      pengeluaran: expenses,
+      total_omzet: totalOmzet,
+      omzet_bersih: realOmzet,
+      total_pengeluaran: totalExpense,
+      sisa_omzet: remainingOmzet,
+    });
+    setSaving(false);
+    if (error) {
+      alert(`Gagal menyimpan ke Supabase: ${error.message}`);
+      return;
+    }
+    alert("Laporan berhasil disimpan ke Supabase.");
   }
 
   function sendWhatsApp() {
-    const nomor = window.prompt("Masukkan nomor WhatsApp tujuan (contoh 62812xxxx):");
-    if (!nomor) return;
-    const nomorBersih = nomor.replace(/[^0-9]/g, "");
-    if (!nomorBersih) {
-      alert("Nomor WhatsApp tidak valid.");
-      return;
-    }
-    window.open(`https://wa.me/${nomorBersih}?text=${encodeURIComponent(buildReportMessage())}`, "_blank");
+    const message = encodeURIComponent(buildReportMessage());
+    // Tanpa memasukkan nomor: WhatsApp akan terbuka dan pengguna memilih kontak/grup tujuan.
+    window.open(`https://api.whatsapp.com/send?text=${message}`, "_blank");
   }
 
   function deleteExpense(id: number) {
@@ -134,8 +155,8 @@ export default function LaporanKasirPage() {
         </section>
 
         <div style={actionsStyle}>
-          <button type="button" onClick={saveReport} style={{ ...buttonStyle, background: "#0f766e", color: "#ffffff" }}>💾 Simpan Laporan</button>
-          <button type="button" onClick={sendWhatsApp} style={{ ...buttonStyle, background: "#25d366", color: "#ffffff" }}>💬 Kirim WhatsApp</button>
+          <button type="button" onClick={saveReport} disabled={saving} style={{ ...buttonStyle, background: "#0f766e", color: "#ffffff", opacity: saving ? 0.7 : 1 }}>{saving ? "⏳ Menyimpan..." : "💾 Simpan ke Supabase"}</button>
+          <button type="button" onClick={sendWhatsApp} style={{ ...buttonStyle, background: "#25d366", color: "#ffffff" }}>💬 Buka WhatsApp</button>
           <button type="button" onClick={resetForm} style={{ ...buttonStyle, background: "#e5e7eb", color: "#344054" }}>Reset Form</button>
         </div>
 

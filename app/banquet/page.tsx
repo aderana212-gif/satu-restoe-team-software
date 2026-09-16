@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type OrderStatus = "Booking" | "DP" | "Lunas" | "Selesai" | "Batal";
 type Venue = "Indoor" | "Outdoor" | "Dome LT 2" | "VIP (25–30 orang)";
 
-const VENUES: Venue[] = ["Indoor", "Outdoor", "Dome LT 2", "VIP (25–30 orang)"];
-const FACILITIES = ["Live Musik", "Karaoke Luar", "Karaoke Dalam", "Karaoke Lantai 2 Dome"];
-const STORAGE_KEY = "satu-restoe-banquet-orders";
-
-export type BanquetOrder = {
+type BanquetOrder = {
   id: number;
   tanggal: string;
   jamReady: string;
@@ -28,6 +24,12 @@ export type BanquetOrder = {
   status: OrderStatus;
   catatan: string;
 };
+
+const VENUES: Venue[] = ["Indoor", "Outdoor", "Dome LT 2", "VIP (25–30 orang)"];
+const FACILITIES = ["Live Musik", "Karaoke Luar", "Karaoke Dalam", "Karaoke Lantai 2 Dome"];
+const STATUSES: OrderStatus[] = ["Booking", "DP", "Lunas", "Selesai", "Batal"];
+const STORAGE_KEY = "satu-restoe-banquet-orders";
+const BANK_INFO = "Bank BCA\nNo. Rekening: 7740731178\nAtas Nama: Wida Novianti";
 
 const emptyForm = {
   tanggal: "",
@@ -48,13 +50,13 @@ const emptyForm = {
   catatan: "",
 };
 
-const INTERNAL_NUMBER = "";
-const BANK_INFO = "Bank BCA\nNo. Rekening: 7740731178\nAtas Nama: Wida Novianti";
+type FormState = typeof emptyForm;
 
 export default function BanquetPage() {
   const [orders, setOrders] = useState<BanquetOrder[]>([]);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<BanquetOrder | null>(null);
   const [filterStatus, setFilterStatus] = useState<"Semua" | OrderStatus>("Semua");
   const [search, setSearch] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -74,48 +76,31 @@ export default function BanquetPage() {
     if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
   }, [orders, loaded]);
 
-  const totalNilaiForm = Number(form.jumlahTamu || 0) * Number(form.hargaPerOrang || 0);
-
-  const filteredOrders = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    return orders.filter((order) => {
-      const matchesStatus = filterStatus === "Semua" || order.status === filterStatus;
-      const haystack = [
-        order.namaAcara,
-        order.namaPemesan,
-        order.kontak,
-        order.venue,
-        order.menu,
-        order.fasilitas.join(" "),
-      ].join(" ").toLowerCase();
-      return matchesStatus && (!keyword || haystack.includes(keyword));
-    });
-  }, [orders, filterStatus, search]);
-
-  const ringkasan = useMemo(() => ({
-    total: orders.length,
-    aktif: orders.filter((o) => o.status !== "Batal" && o.status !== "Selesai").length,
-    tamu: orders.filter((o) => o.status !== "Batal").reduce((sum, o) => sum + o.jumlahTamu, 0),
-    nilai: orders.filter((o) => o.status !== "Batal").reduce((sum, o) => sum + o.jumlahTamu * o.hargaPerOrang, 0),
-    dp: orders.filter((o) => o.status !== "Batal").reduce((sum, o) => sum + o.dp, 0),
-  }), [orders]);
-
-  const formatRupiah = (value: number) => new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value || 0);
+  const formatRupiah = (value: number) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(value || 0);
 
   const formatTanggal = (value: string) => {
     if (!value) return "-";
     return new Intl.DateTimeFormat("id-ID", {
+      weekday: "long",
       day: "2-digit",
-      month: "short",
+      month: "long",
       year: "numeric",
     }).format(new Date(`${value}T00:00:00`));
   };
 
-  const updateForm = (key: keyof typeof emptyForm, value: string | string[]) => {
+  const normalizePhone = (value: string) => {
+    let clean = value.replace(/[^0-9]/g, "");
+    if (clean.startsWith("0")) clean = `62${clean.slice(1)}`;
+    if (clean.startsWith("8")) clean = `62${clean}`;
+    return clean;
+  };
+
+  const updateForm = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
@@ -133,16 +118,26 @@ export default function BanquetPage() {
     setEditingId(null);
   };
 
+  const totalNilaiForm = Number(form.jumlahTamu || 0) * Number(form.hargaPerOrang || 0);
+
   const simpanPesanan = () => {
     const jumlahTamu = Number(form.jumlahTamu);
     const jumlahCrew = Number(form.jumlahCrew || 0);
     const hargaPerOrang = Number(form.hargaPerOrang);
     const dp = Number(form.dp || 0);
 
-    if (!form.tanggal || !form.jamReady || !form.namaAcara.trim() || !form.namaPemesan.trim() || jumlahTamu <= 0 || hargaPerOrang <= 0) {
+    if (
+      !form.tanggal ||
+      !form.jamReady ||
+      !form.namaAcara.trim() ||
+      !form.namaPemesan.trim() ||
+      jumlahTamu <= 0 ||
+      hargaPerOrang <= 0
+    ) {
       alert("Mohon lengkapi tanggal, jam ready, acara, PIC, jumlah tamu, dan harga per orang.");
       return;
     }
+
     if (dp < 0 || dp > jumlahTamu * hargaPerOrang) {
       alert("Nilai DP tidak boleh lebih besar dari total pesanan.");
       return;
@@ -168,9 +163,12 @@ export default function BanquetPage() {
       catatan: form.catatan.trim(),
     };
 
-    setOrders((current) => editingId === null
-      ? [...current, data]
-      : current.map((order) => order.id === editingId ? data : order));
+    setOrders((current) =>
+      editingId === null
+        ? [...current, data]
+        : current.map((order) => (order.id === editingId ? data : order)),
+    );
+    setSelectedOrder(data);
     alert(editingId === null ? "Pesanan banquet berhasil disimpan." : "Pesanan banquet berhasil diperbarui.");
     resetForm();
   };
@@ -201,244 +199,309 @@ export default function BanquetPage() {
   const hapusPesanan = (id: number) => {
     if (!confirm("Hapus pesanan banquet ini?")) return;
     setOrders((current) => current.filter((order) => order.id !== id));
+    if (selectedOrder?.id === id) setSelectedOrder(null);
     if (editingId === id) resetForm();
   };
 
   const buildMessage = (order: BanquetOrder, internal: boolean) => {
     const total = order.jumlahTamu * order.hargaPerOrang;
-    const fasilitas = order.fasilitas.length ? order.fasilitas.map((item) => `• ${item}`).join("\n") : "-";
-    const menu = order.menu || "-";
-    const additional = order.additional || "-";
+    const fasilitas = order.fasilitas.length
+      ? order.fasilitas.map((item) => `• ${item}`).join("\n")
+      : "-";
     const complimentary = order.complimentary || `${order.jumlahCrew || 0} crew`;
+
     const base = `${internal ? "BANQUET ORDER INTERNAL" : "INFO RESERVASI"} – SATU RESTOE\n\n` +
-      `Hari/Tanggal: ${formatHariTanggal(order.tanggal)}\n` +
+      `Hari/Tanggal: ${formatTanggal(order.tanggal)}\n` +
       `Jam makanan ready: ${order.jamReady || "-"}\n` +
       `Venue: ${order.venue}\n` +
-      `Instansi/Travel: ${order.namaPemesan}\n` +
+      `Instansi/Travel/PIC: ${order.namaPemesan}\n` +
       `Nama Acara: ${order.namaAcara}\n` +
       `Jumlah Tamu: ${order.jumlahTamu} orang\n` +
       `TL/Sopir/Crew: ${order.jumlahCrew || 0} orang\n` +
       `Harga Menu: ${formatRupiah(order.hargaPerOrang)} / pax\n\n` +
       `FASILITAS/HIBURAN:\n${fasilitas}\n\n` +
-      `PESANAN MENU:\n${menu}\n\n` +
-      `ADDITIONAL ORDERS:\n${additional}\n\n` +
+      `PESANAN MENU:\n${order.menu || "-"}\n\n` +
+      `ADDITIONAL ORDERS:\n${order.additional || "-"}\n\n` +
       `COMPLIMENTARY:\n${complimentary}\n\n` +
       `CATATAN:\n${order.catatan || "-"}\n\n` +
       `TOTAL ORDER: ${formatRupiah(total)}\n` +
       `DP: ${formatRupiah(order.dp)}\n` +
       `SISA PEMBAYARAN: ${formatRupiah(Math.max(0, total - order.dp))}`;
 
-    if (internal) {
-      return `${base}\nStatus: ${order.status}\n\nUntuk kebutuhan operasional internal Satu Restoe.`;
-    }
+    if (internal) return `${base}\nStatus: ${order.status}\n\nUntuk kebutuhan operasional internal Satu Restoe.`;
 
     return `${base}\n\nPEMBAYARAN TRANSFER:\n${BANK_INFO}\n\nMohon kirimkan bukti transfer setelah pembayaran.\n\nTerima kasih telah memilih Satu Restoe Pangandaran.`;
   };
 
-  const kirimWhatsApp = (order: BanquetOrder, internal: boolean) => {
-    const defaultNumber = internal ? INTERNAL_NUMBER : order.kontak;
-    const nomor = window.prompt(
-      `Nomor WhatsApp ${internal ? "internal" : "customer"} (format 62812xxxx):`,
-      defaultNumber,
-    );
-    if (!nomor) return;
-    let clean = nomor.replace(/[^0-9]/g, "");
-    if (clean.startsWith("0")) clean = `62${clean.slice(1)}`;
-    if (clean.length < 10) {
-      alert("Nomor WhatsApp tidak valid. Gunakan format 628xxxxxxxxxx.");
+  const kirimWhatsAppCustomer = (order: BanquetOrder) => {
+    const nomor = normalizePhone(order.kontak);
+    if (!nomor || nomor.length < 10) {
+      alert("Nomor WhatsApp customer belum diisi atau tidak valid. Silakan ubah pesanan terlebih dahulu.");
       return;
     }
-    window.open(`https://wa.me/${clean}?text=${encodeURIComponent(buildMessage(order, internal))}`, "_blank", "noopener,noreferrer");
+    const url = `https://wa.me/${nomor}?text=${encodeURIComponent(buildMessage(order, false))}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  return (
-    <main style={pageStyle}>
-      <div style={containerStyle}>
-        <a href="/" style={backLinkStyle}>← Kembali ke Dashboard</a>
+  const kirimWhatsAppInternal = (order: BanquetOrder) => {
+    // Tanpa meminta nomor manual: WhatsApp akan membuka pemilih chat/grup internal.
+    const url = `https://wa.me/?text=${encodeURIComponent(buildMessage(order, true))}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
-        <header style={headerStyle}>
-          <div style={eyebrowStyle}>TAB 2 · OPERASIONAL ACARA</div>
-          <h1 style={mainTitleStyle}>Banquet Order</h1>
-          <p style={subtitleStyle}>Kelola reservasi rombongan, gathering, study tour, meeting, dan acara Satu Restoe.</p>
-          <div style={flowStyle}>Input Booking → Menu & Fasilitas → Total Otomatis → WA Internal / WA Customer</div>
+  const filteredOrders = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    return orders.filter((order) => {
+      const statusMatch = filterStatus === "Semua" || order.status === filterStatus;
+      const text = [
+        order.namaAcara,
+        order.namaPemesan,
+        order.kontak,
+        order.venue,
+        order.menu,
+        order.fasilitas.join(" "),
+      ].join(" ").toLowerCase();
+      return statusMatch && (!keyword || text.includes(keyword));
+    });
+  }, [orders, filterStatus, search]);
+
+  const ringkasan = useMemo(() => ({
+    total: orders.length,
+    aktif: orders.filter((o) => o.status !== "Batal" && o.status !== "Selesai").length,
+    tamu: orders.filter((o) => o.status !== "Batal").reduce((sum, o) => sum + o.jumlahTamu, 0),
+    nilai: orders.filter((o) => o.status !== "Batal").reduce((sum, o) => sum + o.jumlahTamu * o.hargaPerOrang, 0),
+  }), [orders]);
+
+  return (
+    <main style={styles.page}>
+      <div style={styles.container}>
+        <a href="/" style={styles.backLink}>← Kembali ke Dashboard</a>
+
+        <header style={styles.header}>
+          <div style={styles.eyebrow}>TAB 2 · OPERASIONAL ACARA</div>
+          <h1 style={styles.title}>Banquet Order</h1>
+          <p style={styles.subtitle}>Kelola reservasi rombongan, gathering, study tour, meeting, dan acara Satu Restoe.</p>
+          <div style={styles.flow}>Input Booking → Menu & Fasilitas → Total Otomatis → Detail → WA Internal / WA Customer</div>
         </header>
 
-        <section style={summaryGridStyle}>
-          <SummaryCard label="Total Pesanan" value={String(ringkasan.total)} tone="teal" />
-          <SummaryCard label="Booking Aktif" value={String(ringkasan.aktif)} tone="blue" />
-          <SummaryCard label="Total Tamu" value={`${ringkasan.tamu} orang`} tone="purple" />
-          <SummaryCard label="Estimasi Nilai" value={formatRupiah(ringkasan.nilai)} tone="green" />
+        <section style={styles.summaryGrid}>
+          <SummaryCard label="Total Pesanan" value={String(ringkasan.total)} tone="#0f766e" />
+          <SummaryCard label="Booking Aktif" value={String(ringkasan.aktif)} tone="#2563eb" />
+          <SummaryCard label="Total Tamu" value={`${ringkasan.tamu} orang`} tone="#7c3aed" />
+          <SummaryCard label="Estimasi Nilai" value={formatRupiah(ringkasan.nilai)} tone="#15803d" />
         </section>
 
-        <section style={sectionStyle}>
-          <div style={sectionHeadingStyle}>
+        <section style={styles.card}>
+          <div style={styles.sectionHeading}>
             <div>
-              <div style={stepLabelStyle}>{editingId ? "MODE EDIT" : "FORM BARU"}</div>
-              <h2 style={sectionTitleStyle}>{editingId ? "Ubah Pesanan Banquet" : "Tambah Pesanan Banquet"}</h2>
+              <div style={styles.stepLabel}>{editingId ? "MODE EDIT" : "FORM BARU"}</div>
+              <h2 style={styles.sectionTitle}>{editingId ? "Ubah Pesanan Banquet" : "Tambah Pesanan Banquet"}</h2>
             </div>
-            {editingId && <button onClick={resetForm} style={secondaryButtonStyle}>Batal Edit</button>}
+            {editingId && <button onClick={resetForm} style={styles.secondaryButton}>Batal Edit</button>}
           </div>
 
-          <div style={formGridStyle}>
-            <Field label="Tanggal Acara *"><input type="date" value={form.tanggal} onChange={(e) => updateForm("tanggal", e.target.value)} style={inputStyle} /></Field>
-            <Field label="Jam Makanan Ready *"><input type="time" value={form.jamReady} onChange={(e) => updateForm("jamReady", e.target.value)} style={inputStyle} /></Field>
-            <Field label="Nama Acara *"><input type="text" placeholder="Contoh: Study Tour SMP" value={form.namaAcara} onChange={(e) => updateForm("namaAcara", e.target.value)} style={inputStyle} /></Field>
-            <Field label="Instansi / Travel / PIC *"><input type="text" placeholder="Contoh: Percobaan Travel" value={form.namaPemesan} onChange={(e) => updateForm("namaPemesan", e.target.value)} style={inputStyle} /></Field>
-            <Field label="WhatsApp Customer"><input type="tel" placeholder="62812xxxx" value={form.kontak} onChange={(e) => updateForm("kontak", e.target.value)} style={inputStyle} /></Field>
-            <Field label="Jumlah Tamu *"><input type="number" min="1" placeholder="40" value={form.jumlahTamu} onChange={(e) => updateForm("jumlahTamu", e.target.value)} style={inputStyle} /></Field>
-            <Field label="TL / Sopir / Crew"><input type="number" min="0" placeholder="2" value={form.jumlahCrew} onChange={(e) => updateForm("jumlahCrew", e.target.value)} style={inputStyle} /></Field>
-            <Field label="Harga Menu / Pax *"><input type="number" min="1" placeholder="65000" value={form.hargaPerOrang} onChange={(e) => updateForm("hargaPerOrang", e.target.value)} style={inputStyle} /></Field>
-            <Field label="DP / Uang Muka"><input type="number" min="0" placeholder="0" value={form.dp} onChange={(e) => updateForm("dp", e.target.value)} style={inputStyle} /></Field>
-            <Field label="Status Pesanan"><select value={form.status} onChange={(e) => updateForm("status", e.target.value)} style={inputStyle}><option>Booking</option><option>DP</option><option>Lunas</option><option>Selesai</option><option>Batal</option></select></Field>
+          <div style={styles.formGrid}>
+            <Field label="Tanggal Acara *"><input type="date" value={form.tanggal} onChange={(e) => updateForm("tanggal", e.target.value)} style={styles.input} /></Field>
+            <Field label="Jam Makanan Ready *"><input type="time" value={form.jamReady} onChange={(e) => updateForm("jamReady", e.target.value)} style={styles.input} /></Field>
+            <Field label="Nama Acara *"><input type="text" placeholder="Contoh: Study Tour SMP" value={form.namaAcara} onChange={(e) => updateForm("namaAcara", e.target.value)} style={styles.input} /></Field>
+            <Field label="Instansi / Travel / PIC *"><input type="text" placeholder="Contoh: Percobaan Travel" value={form.namaPemesan} onChange={(e) => updateForm("namaPemesan", e.target.value)} style={styles.input} /></Field>
+            <Field label="WhatsApp Customer"><input type="tel" placeholder="08xxxxxxxxxx atau 628xxxxxxxxxx" value={form.kontak} onChange={(e) => updateForm("kontak", e.target.value)} style={styles.input} /></Field>
+            <Field label="Jumlah Tamu *"><input type="number" min="1" placeholder="40" value={form.jumlahTamu} onChange={(e) => updateForm("jumlahTamu", e.target.value)} style={styles.input} /></Field>
+            <Field label="TL / Sopir / Crew"><input type="number" min="0" placeholder="2" value={form.jumlahCrew} onChange={(e) => updateForm("jumlahCrew", e.target.value)} style={styles.input} /></Field>
+            <Field label="Harga Menu / Pax *"><input type="number" min="1" placeholder="65000" value={form.hargaPerOrang} onChange={(e) => updateForm("hargaPerOrang", e.target.value)} style={styles.input} /></Field>
+            <Field label="DP / Uang Muka"><input type="number" min="0" placeholder="0" value={form.dp} onChange={(e) => updateForm("dp", e.target.value)} style={styles.input} /></Field>
+            <Field label="Status Pesanan"><select value={form.status} onChange={(e) => updateForm("status", e.target.value as OrderStatus)} style={styles.input}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></Field>
           </div>
 
-          <div style={subsectionStyle}>
-            <label style={labelStyle}>Tempat / Venue *</label>
-            <div style={choiceGridStyle}>
-              {VENUES.map((venue) => <button type="button" key={venue} onClick={() => updateForm("venue", venue)} style={choiceStyle(form.venue === venue)}>{venue}</button>)}
-            </div>
+          <div style={styles.subsection}>
+            <label style={styles.label}>Tempat / Venue *</label>
+            <div style={styles.choiceGrid}>{VENUES.map((venue) => <button type="button" key={venue} onClick={() => updateForm("venue", venue)} style={choiceStyle(form.venue === venue)}>{venue}</button>)}</div>
           </div>
 
-          <div style={subsectionStyle}>
-            <label style={labelStyle}>Fasilitas / Hiburan</label>
-            <div style={choiceGridStyle}>
-              {FACILITIES.map((facility) => <button type="button" key={facility} onClick={() => toggleFacility(facility)} style={choiceStyle(form.fasilitas.includes(facility))}>✓ {facility}</button>)}
-            </div>
+          <div style={styles.subsection}>
+            <label style={styles.label}>Fasilitas / Hiburan</label>
+            <div style={styles.choiceGrid}>{FACILITIES.map((facility) => <button type="button" key={facility} onClick={() => toggleFacility(facility)} style={choiceStyle(form.fasilitas.includes(facility))}>{form.fasilitas.includes(facility) ? "✓ " : ""}{facility}</button>)}</div>
           </div>
 
-          <div style={formGridStyle}>
-            <Field label="Pesanan Menu"><textarea rows={4} placeholder="Nasi Liwet\nUdang\nCumi" value={form.menu} onChange={(e) => updateForm("menu", e.target.value)} style={textareaStyle} /></Field>
-            <Field label="Additional Orders"><textarea rows={4} placeholder="Contoh: tambahan minuman, snack, dll." value={form.additional} onChange={(e) => updateForm("additional", e.target.value)} style={textareaStyle} /></Field>
-            <Field label="Complimentary"><textarea rows={3} placeholder="Contoh: 2 crew" value={form.complimentary} onChange={(e) => updateForm("complimentary", e.target.value)} style={textareaStyle} /></Field>
-            <Field label="Catatan / Permintaan Khusus"><textarea rows={3} placeholder="Catatan untuk customer atau operasional" value={form.catatan} onChange={(e) => updateForm("catatan", e.target.value)} style={textareaStyle} /></Field>
+          <div style={styles.formGrid}>
+            <Field label="Pesanan Menu"><textarea rows={4} placeholder={'Nasi Liwet\nUdang\nCumi'} value={form.menu} onChange={(e) => updateForm("menu", e.target.value)} style={styles.textarea} /></Field>
+            <Field label="Additional Orders"><textarea rows={4} placeholder="Contoh: tambahan minuman, snack, dll." value={form.additional} onChange={(e) => updateForm("additional", e.target.value)} style={styles.textarea} /></Field>
+            <Field label="Complimentary"><textarea rows={3} placeholder="Contoh: 2 crew" value={form.complimentary} onChange={(e) => updateForm("complimentary", e.target.value)} style={styles.textarea} /></Field>
+            <Field label="Catatan / Permintaan Khusus"><textarea rows={3} placeholder="Catatan untuk customer atau operasional" value={form.catatan} onChange={(e) => updateForm("catatan", e.target.value)} style={styles.textarea} /></Field>
           </div>
 
-          <div style={estimateGridStyle}>
-            <div style={estimateStyle}><span>Total Order</span><strong>{formatRupiah(totalNilaiForm)}</strong></div>
-            <div style={estimateStyle}><span>DP</span><strong>{formatRupiah(Number(form.dp || 0))}</strong></div>
-            <div style={estimateStyle}><span>Sisa Pembayaran</span><strong>{formatRupiah(Math.max(0, totalNilaiForm - Number(form.dp || 0)))}</strong></div>
+          <div style={styles.estimateGrid}>
+            <Estimate label="Total Order" value={formatRupiah(totalNilaiForm)} />
+            <Estimate label="DP" value={formatRupiah(Number(form.dp || 0))} />
+            <Estimate label="Sisa Pembayaran" value={formatRupiah(Math.max(0, totalNilaiForm - Number(form.dp || 0)))} />
           </div>
 
-          <button onClick={simpanPesanan} style={primaryButtonStyle}>{editingId ? "Simpan Perubahan" : "+ Simpan Pesanan"}</button>
+          <button onClick={simpanPesanan} style={styles.primaryButton}>{editingId ? "✓ Simpan Perubahan" : "+ Simpan Pesanan"}</button>
         </section>
 
-        <section style={sectionStyle}>
-          <div style={sectionHeadingStyle}>
+        <section style={styles.card}>
+          <div style={styles.sectionHeading}>
             <div>
-              <div style={stepLabelStyle}>DATABASE PESANAN</div>
-              <h2 style={sectionTitleStyle}>Daftar Pesanan Banquet</h2>
+              <div style={styles.stepLabel}>DATABASE PESANAN</div>
+              <h2 style={styles.sectionTitle}>Daftar Pesanan Banquet</h2>
             </div>
-            <div style={smallNoteStyle}>DP terkumpul: <strong>{formatRupiah(ringkasan.dp)}</strong></div>
+            <div style={styles.totalBadge}>DP terkumpul: {formatRupiah(orders.filter((o) => o.status !== "Batal").reduce((sum, o) => sum + o.dp, 0))}</div>
           </div>
 
-          <div style={toolbarStyle}>
-            <input type="search" placeholder="Cari acara, PIC, kontak, venue..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: "220px" }} />
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as "Semua" | OrderStatus)} style={{ ...inputStyle, width: "180px" }}><option>Semua</option><option>Booking</option><option>DP</option><option>Lunas</option><option>Selesai</option><option>Batal</option></select>
+          <div style={styles.toolbar}>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari acara, PIC, kontak, venue..." style={styles.input} />
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as "Semua" | OrderStatus)} style={styles.filterSelect}><option>Semua</option>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select>
           </div>
 
-          {filteredOrders.length === 0 ? (
-            <div style={emptyStyle}>{orders.length === 0 ? "Belum ada pesanan banquet. Silakan tambahkan pesanan pertama." : "Tidak ada pesanan yang sesuai pencarian atau filter."}</div>
-          ) : (
-            <div style={tableWrapperStyle}>
-              <table style={tableStyle}>
-                <thead><tr><th style={thStyle}>Tanggal</th><th style={thStyle}>Acara / PIC</th><th style={thStyle}>Tamu</th><th style={thStyle}>Harga / Pax</th><th style={thStyle}>Total</th><th style={thStyle}>DP / Sisa</th><th style={thStyle}>Venue / Fasilitas</th><th style={thStyle}>Status</th><th style={thStyle}>Aksi</th></tr></thead>
-                <tbody>{filteredOrders.map((order) => {
-                  const total = order.jumlahTamu * order.hargaPerOrang;
-                  return <tr key={order.id}>
-                    <td style={tdStyle}>{formatTanggal(order.tanggal)}<small style={subTextStyle}>Ready {order.jamReady || "-"}</small></td>
-                    <td style={tdStyle}><strong>{order.namaAcara}</strong><small style={subTextStyle}>{order.namaPemesan}{order.kontak ? ` · ${order.kontak}` : ""}</small></td>
-                    <td style={tdStyle}>{order.jumlahTamu} orang<small style={subTextStyle}>Crew {order.jumlahCrew || 0}</small></td>
-                    <td style={tdStyle}>{formatRupiah(order.hargaPerOrang)}</td>
-                    <td style={tdStyle}><strong>{formatRupiah(total)}</strong></td>
-                    <td style={tdStyle}>{formatRupiah(order.dp)}<small style={subTextStyle}>Sisa {formatRupiah(Math.max(0, total - order.dp))}</small></td>
-                    <td style={tdStyle}>{order.venue}<small style={subTextStyle}>{order.fasilitas?.join(", ") || "Tanpa fasilitas"}</small></td>
-                    <td style={tdStyle}><span style={statusStyle(order.status)}>{order.status}</span></td>
-                    <td style={tdStyle}><div style={actionStackStyle}><button onClick={() => mulaiEdit(order)} style={editButtonStyle}>Ubah</button><button onClick={() => kirimWhatsApp(order, true)} style={internalButtonStyle}>WA Internal</button><button onClick={() => kirimWhatsApp(order, false)} style={customerButtonStyle}>WA Customer</button><button onClick={() => hapusPesanan(order.id)} style={deleteButtonStyle}>Hapus</button></div></td>
-                  </tr>;
-                })}</tbody>
-              </table>
-            </div>
-          )}
+          <div style={styles.orderList}>
+            {filteredOrders.length === 0 && <div style={styles.empty}>Belum ada pesanan yang sesuai.</div>}
+            {filteredOrders.map((order) => (
+              <div key={order.id} style={styles.orderRow}>
+                <div style={styles.orderMain}>
+                  <div style={styles.date}>{formatTanggal(order.tanggal)}</div>
+                  <strong style={styles.orderName}>{order.namaAcara}</strong>
+                  <div style={styles.muted}>{order.namaPemesan} · {order.kontak || "Kontak belum diisi"}</div>
+                  <div style={styles.muted}>{order.jumlahTamu} tamu · {order.venue} · Ready {order.jamReady}</div>
+                </div>
+                <div style={styles.orderSide}>
+                  <span style={statusStyle(order.status)}>{order.status}</span>
+                  <strong>{formatRupiah(order.jumlahTamu * order.hargaPerOrang)}</strong>
+                  <div style={styles.rowButtons}>
+                    <button onClick={() => setSelectedOrder(order)} style={styles.detailButton}>Detail</button>
+                    <button onClick={() => mulaiEdit(order)} style={styles.secondaryButton}>Ubah</button>
+                    <button onClick={() => hapusPesanan(order.id)} style={styles.deleteButton}>Hapus</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
 
-        <footer style={footerStyle}>Satu Restoe Team Software © 2026</footer>
+        {selectedOrder && (
+          <section style={styles.detailCard}>
+            <div style={styles.detailHeader}>
+              <div>
+                <div style={styles.stepLabel}>HALAMAN TERAKHIR · AKSI WHATSAPP</div>
+                <h2 style={styles.sectionTitle}>Detail Pesanan</h2>
+              </div>
+              <button onClick={() => setSelectedOrder(null)} style={styles.secondaryButton}>Tutup</button>
+            </div>
+
+            <div style={styles.detailTitle}>{selectedOrder.namaAcara}</div>
+            <div style={styles.detailMeta}>{formatTanggal(selectedOrder.tanggal)} · Ready {selectedOrder.jamReady} · {selectedOrder.venue}</div>
+            <div style={styles.detailGrid}>
+              <DetailItem label="Instansi / PIC" value={selectedOrder.namaPemesan} />
+              <DetailItem label="Kontak Customer" value={selectedOrder.kontak || "Belum diisi"} />
+              <DetailItem label="Jumlah Tamu" value={`${selectedOrder.jumlahTamu} orang`} />
+              <DetailItem label="Harga / Pax" value={formatRupiah(selectedOrder.hargaPerOrang)} />
+              <DetailItem label="Total Order" value={formatRupiah(selectedOrder.jumlahTamu * selectedOrder.hargaPerOrang)} />
+              <DetailItem label="Sisa Pembayaran" value={formatRupiah(Math.max(0, selectedOrder.jumlahTamu * selectedOrder.hargaPerOrang - selectedOrder.dp))} />
+              <DetailItem label="Fasilitas" value={selectedOrder.fasilitas.join(", ") || "-"} />
+              <DetailItem label="Menu" value={selectedOrder.menu || "-"} />
+            </div>
+
+            <div style={styles.whatsappBox}>
+              <div style={styles.whatsappTitle}>Kirim Pesanan</div>
+              <p style={styles.muted}>Tombol WhatsApp disimpan di halaman terakhir/detail. Tidak ada lagi permintaan nomor manual.</p>
+              <div style={styles.whatsappButtons}>
+                <button onClick={() => kirimWhatsAppInternal(selectedOrder)} style={styles.internalButton}>🟢 WA Internal</button>
+                <button onClick={() => kirimWhatsAppCustomer(selectedOrder)} style={styles.customerButton}>🔵 WA Customer</button>
+              </div>
+            </div>
+          </section>
+        )}
+
+        <footer style={styles.footer}>Satu Restoe Team Software © 2026</footer>
       </div>
     </main>
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <div><label style={labelStyle}>{label}</label>{children}</div>;
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label style={styles.field}><span style={styles.label}>{label}</span>{children}</label>;
 }
 
-function SummaryCard({ label, value, tone }: { label: string; value: string; tone: "teal" | "blue" | "purple" | "green" }) {
-  const tones = {
-    teal: { background: "#ecfdf5", color: "#047857" },
-    blue: { background: "#eff6ff", color: "#1d4ed8" },
-    purple: { background: "#f5f3ff", color: "#6d28d9" },
-    green: { background: "#f0fdf4", color: "#166534" },
+function SummaryCard({ label, value, tone }: { label: string; value: string; tone: string }) {
+  return <div style={{ ...styles.summaryCard, borderTop: `4px solid ${tone}` }}><span style={styles.muted}>{label}</span><strong style={styles.summaryValue}>{value}</strong></div>;
+}
+
+function Estimate({ label, value }: { label: string; value: string }) {
+  return <div style={styles.estimate}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return <div style={styles.detailItem}><span style={styles.muted}>{label}</span><strong style={{ whiteSpace: "pre-line" }}>{value}</strong></div>;
+}
+
+function choiceStyle(active: boolean): React.CSSProperties {
+  return { ...styles.choice, ...(active ? styles.choiceActive : {}) };
+}
+
+function statusStyle(status: OrderStatus): React.CSSProperties {
+  const colors: Record<OrderStatus, { background: string; color: string }> = {
+    Booking: { background: "#fef3c7", color: "#92400e" },
+    DP: { background: "#dbeafe", color: "#1d4ed8" },
+    Lunas: { background: "#dcfce7", color: "#166534" },
+    Selesai: { background: "#e0e7ff", color: "#3730a3" },
+    Batal: { background: "#fee2e2", color: "#991b1b" },
   };
-  return <div style={{ ...summaryCardStyle, background: tones[tone].background, color: tones[tone].color }}><span>{label}</span><strong>{value}</strong></div>;
+  return { ...styles.status, ...colors[status] };
 }
 
-function formatHariTanggal(value: string) {
-  if (!value) return "-";
-  return new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(new Date(`${value}T00:00:00`));
-}
-
-function choiceStyle(active: boolean) {
-  return { ...choiceButtonBase, ...(active ? choiceButtonActive : {}) };
-}
-
-const pageStyle = { minHeight: "100vh", background: "#f5f7fb", padding: "24px", fontFamily: "Arial, sans-serif", color: "#172033" };
-const containerStyle = { maxWidth: "1250px", margin: "0 auto" };
-const backLinkStyle = { display: "inline-block", color: "#0f766e", textDecoration: "none", fontWeight: "bold", marginBottom: "16px" };
-const headerStyle = { background: "#ffffff", padding: "26px", borderRadius: "18px", marginBottom: "18px", boxShadow: "0 4px 16px rgba(0,0,0,0.06)" };
-const eyebrowStyle = { color: "#0f766e", fontSize: "12px", fontWeight: 700, letterSpacing: "1px" };
-const mainTitleStyle = { margin: "10px 0 8px", color: "#0f766e", fontSize: "clamp(28px, 5vw, 40px)" };
-const subtitleStyle = { margin: 0, color: "#667085", lineHeight: 1.6 };
-const flowStyle = { marginTop: "16px", padding: "12px 14px", borderRadius: "10px", background: "#f0fdfa", color: "#0f766e", fontWeight: 700, fontSize: "13px" };
-const summaryGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "18px" };
-const summaryCardStyle = { padding: "18px", borderRadius: "16px", display: "flex", flexDirection: "column" as const, gap: "8px", minHeight: "72px" };
-const sectionStyle = { background: "#ffffff", padding: "clamp(18px, 3vw, 26px)", borderRadius: "18px", marginBottom: "18px", boxShadow: "0 4px 16px rgba(0,0,0,0.06)" };
-const sectionHeadingStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" as const, marginBottom: "18px" };
-const stepLabelStyle = { color: "#0f766e", fontSize: "11px", fontWeight: 700, letterSpacing: "1px", marginBottom: "5px" };
-const sectionTitleStyle = { margin: 0, color: "#0f766e", fontSize: "24px" };
-const formGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" };
-const labelStyle = { display: "block", fontSize: "13px", fontWeight: 700, color: "#344054", marginBottom: "7px" };
-const inputStyle = { width: "100%", boxSizing: "border-box" as const, padding: "12px 13px", border: "1px solid #d0d5dd", borderRadius: "10px", fontSize: "14px", background: "#ffffff", color: "#172033", minHeight: "44px" };
-const textareaStyle = { ...inputStyle, resize: "vertical" as const, lineHeight: 1.5 };
-const subsectionStyle = { marginTop: "20px" };
-const choiceGridStyle = { display: "flex", flexWrap: "wrap" as const, gap: "10px" };
-const choiceButtonBase = { border: "1px solid #b8c2cc", borderRadius: "10px", padding: "11px 14px", cursor: "pointer", background: "#ffffff", color: "#344054", fontWeight: 600, fontSize: "13px" };
-const choiceButtonActive = { background: "#d1fae5", borderColor: "#0f766e", color: "#065f46" };
-const estimateGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginTop: "20px" };
-const estimateStyle = { display: "flex", flexDirection: "column" as const, gap: "6px", padding: "15px", borderRadius: "12px", background: "#ecfdf3", color: "#166534" };
-const primaryButtonStyle = { marginTop: "20px", border: "none", borderRadius: "10px", padding: "14px 22px", background: "#0f766e", color: "#ffffff", cursor: "pointer", fontWeight: "bold", fontSize: "15px" };
-const secondaryButtonStyle = { border: "1px solid #d0d5dd", borderRadius: "9px", padding: "10px 14px", background: "#ffffff", color: "#344054", cursor: "pointer", fontWeight: 600 };
-const toolbarStyle = { display: "flex", gap: "10px", flexWrap: "wrap" as const, marginBottom: "16px" };
-const smallNoteStyle = { color: "#667085", fontSize: "13px" };
-const emptyStyle = { padding: "30px", textAlign: "center" as const, color: "#667085", background: "#f8fafc", borderRadius: "12px" };
-const tableWrapperStyle = { overflowX: "auto" as const, WebkitOverflowScrolling: "touch" as const };
-const tableStyle = { width: "100%", borderCollapse: "collapse" as const, minWidth: "1200px" };
-const thStyle = { textAlign: "left" as const, padding: "13px 11px", borderBottom: "1px solid #d0d5dd", background: "#f0fdfa", color: "#344054", fontSize: "12px", whiteSpace: "nowrap" as const };
-const tdStyle = { padding: "13px 11px", borderBottom: "1px solid #eaecf0", fontSize: "13px", whiteSpace: "nowrap" as const, verticalAlign: "top" as const };
-const subTextStyle = { display: "block", color: "#667085", fontSize: "11px", marginTop: "5px", whiteSpace: "normal" as const, maxWidth: "210px" };
-const actionStackStyle = { display: "flex", flexDirection: "column" as const, gap: "6px" };
-const actionBase = { border: "none", borderRadius: "8px", padding: "8px 10px", cursor: "pointer", fontWeight: 600, fontSize: "12px" };
-const editButtonStyle = { ...actionBase, background: "#f3f4f6", color: "#374151" };
-const internalButtonStyle = { ...actionBase, background: "#dcfce7", color: "#166534" };
-const customerButtonStyle = { ...actionBase, background: "#dbeafe", color: "#1d4ed8" };
-const deleteButtonStyle = { ...actionBase, background: "#fee2e2", color: "#991b1b" };
-const footerStyle = { textAlign: "center" as const, color: "#98a2b3", fontSize: "13px", marginTop: "24px" };
-
-function statusStyle(status: OrderStatus) {
-  const colors = status === "Batal"
-    ? { background: "#fee2e2", color: "#991b1b" }
-    : status === "Lunas" || status === "Selesai"
-      ? { background: "#dcfce7", color: "#166534" }
-      : status === "DP"
-        ? { background: "#dbeafe", color: "#1d4ed8" }
-        : { background: "#fef3c7", color: "#92400e" };
-  return { ...colors, padding: "6px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold" };
-}
+const styles: Record<string, React.CSSProperties> = {
+  page: { minHeight: "100vh", background: "#f3f7f8", padding: "24px 12px 48px", color: "#183b3b" },
+  container: { width: "100%", maxWidth: 1100, margin: "0 auto" },
+  backLink: { color: "#0f766e", textDecoration: "none", fontWeight: 700 },
+  header: { padding: "24px 0 18px" },
+  eyebrow: { color: "#0f766e", fontSize: 12, fontWeight: 800, letterSpacing: 1.5 },
+  title: { margin: "8px 0 6px", fontSize: "clamp(30px, 5vw, 48px)", lineHeight: 1.05 },
+  subtitle: { margin: 0, color: "#64748b", fontSize: 16 },
+  flow: { marginTop: 14, display: "inline-block", background: "#dff5ef", color: "#0f766e", padding: "10px 14px", borderRadius: 12, fontSize: 13, fontWeight: 700 },
+  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 16 },
+  summaryCard: { background: "white", borderRadius: 18, padding: 18, boxShadow: "0 5px 18px rgba(15, 118, 110, .07)", display: "flex", flexDirection: "column", gap: 8 },
+  summaryValue: { fontSize: 22, color: "#164e63" },
+  card: { background: "white", borderRadius: 22, padding: "clamp(16px, 3vw, 28px)", marginBottom: 18, boxShadow: "0 8px 28px rgba(15, 118, 110, .07)" },
+  detailCard: { background: "#ecfdf5", border: "1px solid #99f6e4", borderRadius: 22, padding: "clamp(16px, 3vw, 28px)", marginBottom: 18 },
+  sectionHeading: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" },
+  detailHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 },
+  stepLabel: { color: "#0f766e", fontSize: 11, fontWeight: 800, letterSpacing: 1.3 },
+  sectionTitle: { margin: "5px 0 0", fontSize: "clamp(22px, 4vw, 30px)" },
+  formGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 15 },
+  field: { display: "flex", flexDirection: "column", gap: 7, minWidth: 0 },
+  label: { fontSize: 13, fontWeight: 800, color: "#365b5b" },
+  input: { width: "100%", boxSizing: "border-box", border: "1px solid #cbd5d5", borderRadius: 12, padding: "12px 13px", fontSize: 15, background: "#fff", color: "#173b3b" },
+  textarea: { width: "100%", boxSizing: "border-box", border: "1px solid #cbd5d5", borderRadius: 12, padding: "12px 13px", fontSize: 15, background: "#fff", color: "#173b3b", resize: "vertical" },
+  subsection: { marginTop: 22 },
+  choiceGrid: { display: "flex", flexWrap: "wrap", gap: 9, marginTop: 9 },
+  choice: { border: "1px solid #cbd5d5", background: "#f8fafc", color: "#365b5b", borderRadius: 999, padding: "10px 14px", cursor: "pointer", fontWeight: 700 },
+  choiceActive: { background: "#0f766e", borderColor: "#0f766e", color: "white" },
+  estimateGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, margin: "22px 0" },
+  estimate: { background: "#effcf7", borderRadius: 14, padding: 15, display: "flex", flexDirection: "column", gap: 5, color: "#527070" },
+  primaryButton: { border: 0, borderRadius: 12, padding: "13px 20px", background: "#0f766e", color: "white", fontWeight: 800, fontSize: 15, cursor: "pointer" },
+  secondaryButton: { border: "1px solid #cbd5d5", borderRadius: 10, padding: "10px 13px", background: "#f8fafc", color: "#365b5b", fontWeight: 800, cursor: "pointer" },
+  totalBadge: { color: "#0f766e", fontWeight: 800, background: "#ecfdf5", borderRadius: 10, padding: "10px 12px" },
+  toolbar: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) 180px", gap: 10, marginBottom: 15 },
+  filterSelect: { border: "1px solid #cbd5d5", borderRadius: 12, padding: "12px 13px", fontSize: 15, background: "white" },
+  orderList: { display: "flex", flexDirection: "column", gap: 10 },
+  orderRow: { border: "1px solid #e2e8f0", borderRadius: 16, padding: 15, display: "flex", justifyContent: "space-between", gap: 15, flexWrap: "wrap" },
+  orderMain: { minWidth: 0, flex: 1 },
+  orderSide: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 7 },
+  date: { color: "#0f766e", fontSize: 12, fontWeight: 800 },
+  orderName: { display: "block", fontSize: 18, marginTop: 3 },
+  muted: { color: "#64748b", fontSize: 13, lineHeight: 1.5 },
+  status: { borderRadius: 999, padding: "5px 10px", fontSize: 12, fontWeight: 800 },
+  rowButtons: { display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" },
+  detailButton: { border: 0, borderRadius: 9, padding: "8px 11px", background: "#dbeafe", color: "#1d4ed8", fontWeight: 800, cursor: "pointer" },
+  deleteButton: { border: 0, borderRadius: 9, padding: "8px 11px", background: "#fee2e2", color: "#991b1b", fontWeight: 800, cursor: "pointer" },
+  empty: { border: "1px dashed #cbd5d5", borderRadius: 14, padding: 25, textAlign: "center", color: "#64748b" },
+  detailTitle: { fontSize: 26, fontWeight: 900, color: "#115e59" },
+  detailMeta: { color: "#527070", margin: "6px 0 18px" },
+  detailGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 },
+  detailItem: { background: "white", borderRadius: 13, padding: 13, display: "flex", flexDirection: "column", gap: 5 },
+  whatsappBox: { marginTop: 20, background: "white", borderRadius: 16, padding: 17 },
+  whatsappTitle: { fontWeight: 900, fontSize: 18, color: "#115e59" },
+  whatsappButtons: { display: "flex", flexWrap: "wrap", gap: 10, marginTop: 13 },
+  internalButton: { border: 0, borderRadius: 12, padding: "13px 17px", background: "#dcfce7", color: "#166534", fontWeight: 900, cursor: "pointer" },
+  customerButton: { border: 0, borderRadius: 12, padding: "13px 17px", background: "#dbeafe", color: "#1d4ed8", fontWeight: 900, cursor: "pointer" },
+  footer: { textAlign: "center", color: "#94a3b8", fontSize: 12, paddingTop: 12 },
+};

@@ -11,6 +11,12 @@ type Summary = {
   mutasiHariIni: number;
 };
 
+type SummaryCard = {
+  label: string;
+  value: string | number;
+  color: string;
+};
+
 export default function GudangPage() {
   const [summary, setSummary] = useState<Summary>({
     barang: 0,
@@ -61,8 +67,9 @@ export default function GudangPage() {
       }
 
       const stokRows = stokResult.data || [];
-      const stokMenipis = stokRows.filter((row) => Number(row.jumlah_stok) <= 0)
-        .length;
+      const stokMenipis = stokRows.filter(
+        (row) => Number(row.jumlah_stok) <= 0
+      ).length;
 
       setSummary({
         barang: barangResult.count || 0,
@@ -79,7 +86,8 @@ export default function GudangPage() {
   const menu = [
     {
       title: "Master Barang",
-      description: "Kelola bahan baku, minuman, kemasan, perlengkapan, dan aset.",
+      description:
+        "Kelola bahan baku, minuman, kemasan, perlengkapan, dan aset.",
       href: "/gudang/barang",
       icon: "📦",
     },
@@ -97,7 +105,8 @@ export default function GudangPage() {
     },
     {
       title: "Master Gudang",
-      description: "Kelola gudang utama, dapur, minuman, dan lokasi lainnya.",
+      description:
+        "Kelola gudang utama, dapur, minuman, dan lokasi lainnya.",
       href: "/gudang/master-gudang",
       icon: "🏢",
     },
@@ -127,6 +136,29 @@ export default function GudangPage() {
     },
   ];
 
+  const summaryCards: SummaryCard[] = [
+    {
+      label: "Total Jenis Barang",
+      value: loading ? "…" : summary.barang,
+      color: "#0f766e",
+    },
+    {
+      label: "Stok Menipis",
+      value: loading ? "…" : summary.stokMenipis,
+      color: "#d97706",
+    },
+    {
+      label: "Jumlah Gudang",
+      value: loading ? "…" : summary.gudang,
+      color: "#2563eb",
+    },
+    {
+      label: "Mutasi Hari Ini",
+      value: loading ? "…" : summary.mutasiHariIni,
+      color: "#7c3aed",
+    },
+  ];
+
   return (
     <main
       style={{
@@ -149,7 +181,11 @@ export default function GudangPage() {
         >
           <Link
             href="/"
-            style={{ color: "#667085", textDecoration: "none", fontSize: "14px" }}
+            style={{
+              color: "#667085",
+              textDecoration: "none",
+              fontSize: "14px",
+            }}
           >
             ← Dashboard Utama
           </Link>
@@ -167,8 +203,15 @@ export default function GudangPage() {
               <h1 style={{ margin: 0, fontSize: "30px", color: "#0f766e" }}>
                 Gudang & Inventaris
               </h1>
-              <p style={{ margin: "8px 0 0", color: "#667085", fontSize: "15px" }}>
-                Kelola barang, stok, gudang, dan pergerakan persediaan Satu Restoe.
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: "#667085",
+                  fontSize: "15px",
+                }}
+              >
+                Kelola barang, stok, gudang, dan pergerakan persediaan Satu
+                Restoe.
               </p>
             </div>
             <div
@@ -210,14 +253,9 @@ export default function GudangPage() {
             marginBottom: "28px",
           }}
         >
-          {[
-            ["Total Jenis Barang", loading ? "…" : summary.barang, "#0f766e"],
-            ["Stok Menipis", loading ? "…" : summary.stokMenipis, "#d97706"],
-            ["Jumlah Gudang", loading ? "…" : summary.gudang, "#2563eb"],
-            ["Mutasi Hari Ini", loading ? "…" : summary.mutasiHariIni, "#7c3aed"],
-          ].map(([label, value, color]) => (
+          {summaryCards.map((card) => (
             <div
-              key={label}
+              key={card.label}
               style={{
                 background: "#ffffff",
                 borderRadius: "16px",
@@ -226,16 +264,33 @@ export default function GudangPage() {
                 boxShadow: "0 4px 18px rgba(0,0,0,0.05)",
               }}
             >
-              <p style={{ margin: 0, color: "#667085", fontSize: "14px" }}>{label}</p>
-              <p style={{ margin: "10px 0 0", color, fontSize: "32px", fontWeight: 700 }}>
-                {value}
+              <p
+                style={{
+                  margin: 0,
+                  color: "#667085",
+                  fontSize: "14px",
+                }}
+              >
+                {card.label}
+              </p>
+              <p
+                style={{
+                  margin: "10px 0 0",
+                  color: card.color,
+                  fontSize: "32px",
+                  fontWeight: 700,
+                }}
+              >
+                {card.value}
               </p>
             </div>
           ))}
         </section>
 
         <section>
-          <h2 style={{ margin: "0 0 8px", fontSize: "23px" }}>Menu Gudang</h2>
+          <h2 style={{ margin: "0 0 8px", fontSize: "23px" }}>
+            Menu Gudang
+          </h2>
           <p style={{ margin: "0 0 18px", color: "#667085" }}>
             Pilih menu untuk mengelola inventaris restoran.
           </p>
@@ -263,14 +318,36 @@ export default function GudangPage() {
                     boxShadow: "0 4px 18px rgba(0,0,0,0.05)",
                   }}
                 >
-                  <div style={{ fontSize: "30px", marginBottom: "14px" }}>{item.icon}</div>
-                  <h3 style={{ margin: "0 0 9px", color: "#0f766e", fontSize: "19px" }}>
+                  <div style={{ fontSize: "30px", marginBottom: "14px" }}>
+                    {item.icon}
+                  </div>
+                  <h3
+                    style={{
+                      margin: "0 0 9px",
+                      color: "#0f766e",
+                      fontSize: "19px",
+                    }}
+                  >
                     {item.title}
                   </h3>
-                  <p style={{ margin: 0, color: "#667085", lineHeight: 1.55, fontSize: "14px" }}>
+                  <p
+                    style={{
+                      margin: 0,
+                      color: "#667085",
+                      lineHeight: 1.55,
+                      fontSize: "14px",
+                    }}
+                  >
                     {item.description}
                   </p>
-                  <div style={{ marginTop: "16px", color: "#0f766e", fontWeight: 700, fontSize: "14px" }}>
+                  <div
+                    style={{
+                      marginTop: "16px",
+                      color: "#0f766e",
+                      fontWeight: 700,
+                      fontSize: "14px",
+                    }}
+                  >
                     Buka Modul →
                   </div>
                 </div>

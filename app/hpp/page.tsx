@@ -1,101 +1,176 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 type Ingredient = {
   id: number;
-  name: string;
-  unit: string;
-  price: number;
+  nama_bahan: string;
+  satuan: string;
+  harga: number;
+};
+
+type Menu = {
+  id: number;
+  nama_menu: string;
+  porsi: number;
+  harga_jual: number;
 };
 
 type RecipeLine = {
-  ingredientId: number;
-  quantity: number;
-};
-
-type Recipe = {
   id: number;
-  name: string;
-  portion: number;
-  lines: RecipeLine[];
-  sellingPrice: number;
+  menu_id: number;
+  bahan_id: number;
+  jumlah: number;
 };
-
-const initialIngredients: Ingredient[] = [
-  {
-    id: 1,
-    name: "Ayam",
-    unit: "kg",
-    price: 45000,
-  },
-  {
-    id: 2,
-    name: "Beras",
-    unit: "kg",
-    price: 16000,
-  },
-  {
-    id: 3,
-    name: "Minyak Goreng",
-    unit: "liter",
-    price: 18000,
-  },
-];
-
-const initialRecipes: Recipe[] = [
-  {
-    id: 1,
-    name: "Nasi Ayam",
-    portion: 1,
-    lines: [
-      {
-        ingredientId: 1,
-        quantity: 0.2,
-      },
-      {
-        ingredientId: 2,
-        quantity: 0.15,
-      },
-    ],
-    sellingPrice: 25000,
-  },
-];
 
 function formatRupiah(value: number) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value || 0);
 }
 
 export default function HppPage() {
-  const [ingredients, setIngredients] =
-    useState<Ingredient[]>(initialIngredients);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [menus, setMenus] = useState<Menu[]>([]);
+  const [recipeLines, setRecipeLines] = useState<RecipeLine[]>([]);
 
-  const [recipes, setRecipes] = useState<Recipe[]>(initialRecipes);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const [ingredientName, setIngredientName] = useState("");
   const [ingredientUnit, setIngredientUnit] = useState("kg");
   const [ingredientPrice, setIngredientPrice] = useState("");
 
-  const [recipeName, setRecipeName] = useState("");
-  const [recipeSellingPrice, setRecipeSellingPrice] = useState("");
-  const [selectedIngredientId, setSelectedIngredientId] = useState("1");
+  const [menuName, setMenuName] = useState("");
+  const [menuPortion, setMenuPortion] = useState("1");
+  const [menuSellingPrice, setMenuSellingPrice] = useState("");
+
+  const [selectedMenuId, setSelectedMenuId] = useState<number | null>(
+    null
+  );
+  const [selectedIngredientId, setSelectedIngredientId] = useState("");
   const [recipeQuantity, setRecipeQuantity] = useState("");
 
-  const [selectedRecipeId, setSelectedRecipeId] = useState(1);
+  async function loadData() {
+    setLoading(true);
+    setErrorMessage("");
 
-  const selectedRecipe = recipes.find(
-    (recipe) => recipe.id === selectedRecipeId
+    const [
+      ingredientsResponse,
+      menusResponse,
+      recipeLinesResponse,
+    ] = await Promise.all([
+      supabase
+        .from("hpp_bahan")
+        .select("id, nama_bahan, satuan, harga")
+        .order("id", { ascending: true }),
+
+      supabase
+        .from("hpp_menu")
+        .select("id, nama_menu, porsi, harga_jual")
+        .order("id", { ascending: true }),
+
+      supabase
+        .from("hpp_resep_detail")
+        .select("id, menu_id, bahan_id, jumlah")
+        .order("id", { ascending: true }),
+    ]);
+
+    if (ingredientsResponse.error) {
+      setErrorMessage(
+        `Gagal memuat bahan: ${ingredientsResponse.error.message}`
+      );
+      setLoading(false);
+      return;
+    }
+
+    if (menusResponse.error) {
+      setErrorMessage(
+        `Gagal memuat menu: ${menusResponse.error.message}`
+      );
+      setLoading(false);
+      return;
+    }
+
+    if (recipeLinesResponse.error) {
+      setErrorMessage(
+        `Gagal memuat resep: ${recipeLinesResponse.error.message}`
+      );
+      setLoading(false);
+      return;
+    }
+
+    const loadedIngredients = (ingredientsResponse.data || []).map(
+      (item) => ({
+        id: Number(item.id),
+        nama_bahan: item.nama_bahan,
+        satuan: item.satuan,
+        harga: Number(item.harga),
+      })
+    );
+
+    const loadedMenus = (menusResponse.data || []).map((item) => ({
+      id: Number(item.id),
+      nama_menu: item.nama_menu,
+      porsi: Number(item.porsi),
+      harga_jual: Number(item.harga_jual),
+    }));
+
+    const loadedRecipeLines = (recipeLinesResponse.data || []).map(
+      (item) => ({
+        id: Number(item.id),
+        menu_id: Number(item.menu_id),
+        bahan_id: Number(item.bahan_id),
+        jumlah: Number(item.jumlah),
+      })
+    );
+
+    setIngredients(loadedIngredients);
+    setMenus(loadedMenus);
+    setRecipeLines(loadedRecipeLines);
+
+    if (loadedMenus.length > 0) {
+      setSelectedMenuId((current) => current ?? loadedMenus[0].id);
+    } else {
+      setSelectedMenuId(null);
+    }
+
+    if (loadedIngredients.length > 0) {
+      setSelectedIngredientId((current) =>
+        current || String(loadedIngredients[0].id)
+      );
+    }
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const selectedMenu = menus.find(
+    (menu) => menu.id === selectedMenuId
   );
 
-  const calculateIngredientCost = (
+  const selectedMenuLines = useMemo(() => {
+    if (!selectedMenu) {
+      return [];
+    }
+
+    return recipeLines.filter(
+      (line) => line.menu_id === selectedMenu.id
+    );
+  }, [recipeLines, selectedMenu]);
+
+  function calculateIngredientCost(
     ingredientId: number,
     quantity: number
-  ) => {
+  ) {
     const ingredient = ingredients.find(
       (item) => item.id === ingredientId
     );
@@ -104,96 +179,243 @@ export default function HppPage() {
       return 0;
     }
 
-    return ingredient.price * quantity;
-  };
+    return ingredient.harga * quantity;
+  }
 
-  const selectedRecipeCost = useMemo(() => {
-    if (!selectedRecipe) {
-      return 0;
-    }
-
-    return selectedRecipe.lines.reduce((total, line) => {
+  const selectedMenuCost = useMemo(() => {
+    return selectedMenuLines.reduce((total, line) => {
       return (
         total +
-        calculateIngredientCost(line.ingredientId, line.quantity)
+        calculateIngredientCost(line.bahan_id, line.jumlah)
       );
     }, 0);
-  }, [selectedRecipe, ingredients]);
+  }, [selectedMenuLines, ingredients]);
 
-  const selectedRecipeMargin = useMemo(() => {
-    if (!selectedRecipe) {
+  const selectedMenuMargin = useMemo(() => {
+    if (!selectedMenu) {
       return 0;
     }
 
-    return selectedRecipe.sellingPrice - selectedRecipeCost;
-  }, [selectedRecipe, selectedRecipeCost]);
+    return selectedMenu.harga_jual - selectedMenuCost;
+  }, [selectedMenu, selectedMenuCost]);
 
-  function addIngredient() {
-    if (!ingredientName || !ingredientPrice) {
+  async function addIngredient() {
+    if (!ingredientName.trim() || !ingredientPrice) {
       alert("Nama bahan dan harga wajib diisi.");
       return;
     }
 
-    const newIngredient: Ingredient = {
-      id: Date.now(),
-      name: ingredientName,
-      unit: ingredientUnit,
-      price: Number(ingredientPrice),
-    };
+    const price = Number(ingredientPrice);
 
-    setIngredients((current) => [...current, newIngredient]);
+    if (price <= 0) {
+      alert("Harga bahan harus lebih dari 0.");
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage("");
+
+    const { error } = await supabase.from("hpp_bahan").insert({
+      nama_bahan: ingredientName.trim(),
+      satuan: ingredientUnit,
+      harga: price,
+    });
+
+    if (error) {
+      setErrorMessage(`Gagal menyimpan bahan: ${error.message}`);
+      setSaving(false);
+      return;
+    }
+
     setIngredientName("");
     setIngredientPrice("");
+
+    await loadData();
+    setSaving(false);
   }
 
-  function addRecipe() {
-    if (!recipeName || !recipeSellingPrice) {
+  async function addMenu() {
+    if (!menuName.trim() || !menuSellingPrice) {
       alert("Nama menu dan harga jual wajib diisi.");
       return;
     }
 
-    const newRecipe: Recipe = {
-      id: Date.now(),
-      name: recipeName,
-      portion: 1,
-      lines: [],
-      sellingPrice: Number(recipeSellingPrice),
-    };
+    const portion = Number(menuPortion);
+    const sellingPrice = Number(menuSellingPrice);
 
-    setRecipes((current) => [...current, newRecipe]);
-    setSelectedRecipeId(newRecipe.id);
-    setRecipeName("");
-    setRecipeSellingPrice("");
+    if (portion <= 0 || sellingPrice <= 0) {
+      alert("Porsi dan harga jual harus lebih dari 0.");
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage("");
+
+    const { data, error } = await supabase
+      .from("hpp_menu")
+      .insert({
+        nama_menu: menuName.trim(),
+        porsi: portion,
+        harga_jual: sellingPrice,
+      })
+      .select("id, nama_menu, porsi, harga_jual")
+      .single();
+
+    if (error) {
+      setErrorMessage(`Gagal menyimpan menu: ${error.message}`);
+      setSaving(false);
+      return;
+    }
+
+    setMenuName("");
+    setMenuPortion("1");
+    setMenuSellingPrice("");
+
+    await loadData();
+
+    if (data?.id) {
+      setSelectedMenuId(Number(data.id));
+    }
+
+    setSaving(false);
   }
 
-  function addRecipeLine() {
-    if (!selectedRecipe) {
+  async function addRecipeLine() {
+    if (!selectedMenuId) {
+      alert("Pilih menu terlebih dahulu.");
       return;
     }
 
-    if (!recipeQuantity || Number(recipeQuantity) <= 0) {
-      alert("Jumlah bahan wajib diisi.");
+    if (!selectedIngredientId || !recipeQuantity) {
+      alert("Pilih bahan dan isi jumlahnya.");
       return;
     }
 
-    const updatedRecipe: Recipe = {
-      ...selectedRecipe,
-      lines: [
-        ...selectedRecipe.lines,
-        {
-          ingredientId: Number(selectedIngredientId),
-          quantity: Number(recipeQuantity),
-        },
-      ],
-    };
+    const quantity = Number(recipeQuantity);
+    const ingredientId = Number(selectedIngredientId);
 
-    setRecipes((current) =>
-      current.map((recipe) =>
-        recipe.id === updatedRecipe.id ? updatedRecipe : recipe
-      )
-    );
+    if (quantity <= 0) {
+      alert("Jumlah bahan harus lebih dari 0.");
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage("");
+
+    const { error } = await supabase
+      .from("hpp_resep_detail")
+      .insert({
+        menu_id: selectedMenuId,
+        bahan_id: ingredientId,
+        jumlah: quantity,
+      });
+
+    if (error) {
+      setErrorMessage(
+        `Gagal menambahkan bahan ke resep: ${error.message}`
+      );
+      setSaving(false);
+      return;
+    }
 
     setRecipeQuantity("");
+
+    await loadData();
+    setSaving(false);
+  }
+
+  async function deleteIngredient(id: number) {
+    const confirmed = confirm(
+      "Hapus bahan ini? Jika sudah dipakai dalam resep, penghapusan bisa gagal."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setSaving(true);
+
+    const { error } = await supabase
+      .from("hpp_bahan")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      setErrorMessage(`Gagal menghapus bahan: ${error.message}`);
+      setSaving(false);
+      return;
+    }
+
+    await loadData();
+    setSaving(false);
+  }
+
+  async function deleteMenu(id: number) {
+    const confirmed = confirm(
+      "Hapus menu ini beserta detail resepnya?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage("");
+
+    const detailDelete = await supabase
+      .from("hpp_resep_detail")
+      .delete()
+      .eq("menu_id", id);
+
+    if (detailDelete.error) {
+      setErrorMessage(
+        `Gagal menghapus detail resep: ${detailDelete.error.message}`
+      );
+      setSaving(false);
+      return;
+    }
+
+    const menuDelete = await supabase
+      .from("hpp_menu")
+      .delete()
+      .eq("id", id);
+
+    if (menuDelete.error) {
+      setErrorMessage(
+        `Gagal menghapus menu: ${menuDelete.error.message}`
+      );
+      setSaving(false);
+      return;
+    }
+
+    await loadData();
+    setSaving(false);
+  }
+
+  async function deleteRecipeLine(id: number) {
+    const confirmed = confirm("Hapus bahan ini dari resep?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setSaving(true);
+
+    const { error } = await supabase
+      .from("hpp_resep_detail")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      setErrorMessage(
+        `Gagal menghapus detail resep: ${error.message}`
+      );
+      setSaving(false);
+      return;
+    }
+
+    await loadData();
+    setSaving(false);
   }
 
   return (
@@ -247,107 +469,153 @@ export default function HppPage() {
           <p style={{ color: "#667085" }}>
             Kelola bahan, resep, HPP, harga jual, dan margin keuntungan.
           </p>
+
+          {loading && (
+            <p style={{ color: "#667085" }}>
+              Memuat data dari Supabase...
+            </p>
+          )}
+
+          {saving && (
+            <p style={{ color: "#0f766e", fontWeight: 700 }}>
+              Menyimpan data...
+            </p>
+          )}
+
+          {errorMessage && (
+            <div
+              style={{
+                background: "#fef2f2",
+                color: "#b91c1c",
+                border: "1px solid #fecaca",
+                borderRadius: "10px",
+                padding: "12px",
+                marginTop: "12px",
+              }}
+            >
+              {errorMessage}
+            </div>
+          )}
         </header>
 
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(280px, 1fr))",
             gap: "20px",
             marginBottom: "20px",
           }}
         >
-          <div
-            style={{
-              background: "#ffffff",
-              borderRadius: "16px",
-              padding: "22px",
-              boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
-            }}
-          >
-            <h2 style={{ marginTop: 0, color: "#0f766e" }}>
-              Tambah Bahan
-            </h2>
+          <div style={cardStyle}>
+            <h2 style={sectionTitleStyle}>Tambah Bahan</h2>
 
             <input
               value={ingredientName}
-              onChange={(event) => setIngredientName(event.target.value)}
+              onChange={(event) =>
+                setIngredientName(event.target.value)
+              }
               placeholder="Nama bahan"
               style={inputStyle}
             />
 
             <select
               value={ingredientUnit}
-              onChange={(event) => setIngredientUnit(event.target.value)}
+              onChange={(event) =>
+                setIngredientUnit(event.target.value)
+              }
               style={inputStyle}
             >
               <option value="kg">Kilogram</option>
-              <option value="liter">Liter</option>
               <option value="gram">Gram</option>
+              <option value="liter">Liter</option>
+              <option value="ml">Mililiter</option>
               <option value="pcs">Pcs</option>
               <option value="pack">Pack</option>
+              <option value="porsi">Porsi</option>
             </select>
 
             <input
               type="number"
+              min="0"
               value={ingredientPrice}
-              onChange={(event) => setIngredientPrice(event.target.value)}
-              placeholder="Harga beli"
+              onChange={(event) =>
+                setIngredientPrice(event.target.value)
+              }
+              placeholder="Harga beli per satuan"
               style={inputStyle}
             />
 
-            <button onClick={addIngredient} style={buttonStyle}>
+            <button
+              onClick={addIngredient}
+              disabled={saving}
+              style={buttonStyle}
+            >
               Simpan Bahan
             </button>
           </div>
 
-          <div
-            style={{
-              background: "#ffffff",
-              borderRadius: "16px",
-              padding: "22px",
-              boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
-            }}
-          >
-            <h2 style={{ marginTop: 0, color: "#0f766e" }}>
-              Tambah Menu
-            </h2>
+          <div style={cardStyle}>
+            <h2 style={sectionTitleStyle}>Tambah Menu</h2>
 
             <input
-              value={recipeName}
-              onChange={(event) => setRecipeName(event.target.value)}
+              value={menuName}
+              onChange={(event) =>
+                setMenuName(event.target.value)
+              }
               placeholder="Nama menu"
               style={inputStyle}
             />
 
             <input
               type="number"
-              value={recipeSellingPrice}
+              min="1"
+              step="0.01"
+              value={menuPortion}
               onChange={(event) =>
-                setRecipeSellingPrice(event.target.value)
+                setMenuPortion(event.target.value)
+              }
+              placeholder="Jumlah porsi"
+              style={inputStyle}
+            />
+
+            <input
+              type="number"
+              min="0"
+              value={menuSellingPrice}
+              onChange={(event) =>
+                setMenuSellingPrice(event.target.value)
               }
               placeholder="Harga jual"
               style={inputStyle}
             />
 
-            <button onClick={addRecipe} style={buttonStyle}>
+            <button
+              onClick={addMenu}
+              disabled={saving}
+              style={buttonStyle}
+            >
               Simpan Menu
             </button>
           </div>
         </section>
 
-        <section
-          style={{
-            background: "#ffffff",
-            borderRadius: "16px",
-            padding: "22px",
-            marginBottom: "20px",
-            boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
-          }}
-        >
-          <h2 style={{ marginTop: 0, color: "#0f766e" }}>
-            Daftar Bahan
-          </h2>
+        <section style={cardStyle}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            <h2 style={sectionTitleStyle}>Daftar Bahan</h2>
+
+            <span style={countBadgeStyle}>
+              {ingredients.length} bahan
+            </span>
+          </div>
 
           <div style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
@@ -356,165 +624,249 @@ export default function HppPage() {
                   <th style={cellStyle}>Nama Bahan</th>
                   <th style={cellStyle}>Satuan</th>
                   <th style={cellStyle}>Harga</th>
+                  <th style={cellStyle}>Aksi</th>
                 </tr>
               </thead>
 
               <tbody>
-                {ingredients.map((ingredient) => (
-                  <tr key={ingredient.id}>
-                    <td style={cellStyle}>{ingredient.name}</td>
-                    <td style={cellStyle}>{ingredient.unit}</td>
-                    <td style={cellStyle}>
-                      {formatRupiah(ingredient.price)}
+                {ingredients.length === 0 ? (
+                  <tr>
+                    <td style={cellStyle} colSpan={4}>
+                      Belum ada bahan.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  ingredients.map((ingredient) => (
+                    <tr key={ingredient.id}>
+                      <td style={cellStyle}>
+                        {ingredient.nama_bahan}
+                      </td>
+                      <td style={cellStyle}>
+                        {ingredient.satuan}
+                      </td>
+                      <td style={cellStyle}>
+                        {formatRupiah(ingredient.harga)}
+                      </td>
+                      <td style={cellStyle}>
+                        <button
+                          onClick={() =>
+                            deleteIngredient(ingredient.id)
+                          }
+                          disabled={saving}
+                          style={deleteButtonStyle}
+                        >
+                          Hapus
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </section>
 
-        <section
-          style={{
-            background: "#ffffff",
-            borderRadius: "16px",
-            padding: "22px",
-            marginBottom: "20px",
-            boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
-          }}
-        >
-          <h2 style={{ marginTop: 0, color: "#0f766e" }}>
-            Resep Menu
-          </h2>
+        <section style={cardStyle}>
+          <h2 style={sectionTitleStyle}>Resep Menu</h2>
 
-          <select
-            value={selectedRecipeId}
-            onChange={(event) =>
-              setSelectedRecipeId(Number(event.target.value))
-            }
-            style={inputStyle}
-          >
-            {recipes.map((recipe) => (
-              <option key={recipe.id} value={recipe.id}>
-                {recipe.name}
-              </option>
-            ))}
-          </select>
-
-          {selectedRecipe && (
+          {menus.length === 0 ? (
+            <p style={{ color: "#667085" }}>
+              Belum ada menu. Silakan tambah menu terlebih dahulu.
+            </p>
+          ) : (
             <>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(200px, 1fr))",
-                  gap: "12px",
-                  marginTop: "15px",
-                }}
+              <select
+                value={selectedMenuId ?? ""}
+                onChange={(event) =>
+                  setSelectedMenuId(Number(event.target.value))
+                }
+                style={inputStyle}
               >
-                <select
-                  value={selectedIngredientId}
-                  onChange={(event) =>
-                    setSelectedIngredientId(event.target.value)
-                  }
-                  style={inputStyle}
-                >
-                  {ingredients.map((ingredient) => (
-                    <option
-                      key={ingredient.id}
-                      value={ingredient.id}
+                {menus.map((menu) => (
+                  <option key={menu.id} value={menu.id}>
+                    {menu.nama_menu}
+                  </option>
+                ))}
+              </select>
+
+              {selectedMenu && (
+                <>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      borderRadius: "12px",
+                      padding: "16px",
+                      marginTop: "12px",
+                      marginBottom: "16px",
+                    }}
+                  >
+                    <strong>{selectedMenu.nama_menu}</strong>
+                    <div style={{ color: "#667085", marginTop: "6px" }}>
+                      Porsi: {selectedMenu.porsi} | Harga jual:{" "}
+                      {formatRupiah(selectedMenu.harga_jual)}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(200px, 1fr))",
+                      gap: "12px",
+                      marginTop: "15px",
+                    }}
+                  >
+                    <select
+                      value={selectedIngredientId}
+                      onChange={(event) =>
+                        setSelectedIngredientId(event.target.value)
+                      }
+                      style={inputStyle}
                     >
-                      {ingredient.name}
-                    </option>
-                  ))}
-                </select>
+                      {ingredients.length === 0 ? (
+                        <option value="">
+                          Belum ada bahan
+                        </option>
+                      ) : (
+                        ingredients.map((ingredient) => (
+                          <option
+                            key={ingredient.id}
+                            value={ingredient.id}
+                          >
+                            {ingredient.nama_bahan}
+                          </option>
+                        ))
+                      )}
+                    </select>
 
-                <input
-                  type="number"
-                  step="0.01"
-                  value={recipeQuantity}
-                  onChange={(event) =>
-                    setRecipeQuantity(event.target.value)
-                  }
-                  placeholder="Jumlah bahan"
-                  style={inputStyle}
-                />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      value={recipeQuantity}
+                      onChange={(event) =>
+                        setRecipeQuantity(event.target.value)
+                      }
+                      placeholder="Jumlah bahan"
+                      style={inputStyle}
+                    />
 
-                <button
-                  onClick={addRecipeLine}
-                  style={buttonStyle}
-                >
-                  Tambah ke Resep
-                </button>
-              </div>
+                    <button
+                      onClick={addRecipeLine}
+                      disabled={saving || ingredients.length === 0}
+                      style={buttonStyle}
+                    >
+                      Tambah ke Resep
+                    </button>
+                  </div>
 
-              <div style={{ overflowX: "auto", marginTop: "20px" }}>
-                <table style={tableStyle}>
-                  <thead>
-                    <tr>
-                      <th style={cellStyle}>Bahan</th>
-                      <th style={cellStyle}>Jumlah</th>
-                      <th style={cellStyle}>Biaya</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {selectedRecipe.lines.map((line, index) => {
-                      const ingredient = ingredients.find(
-                        (item) => item.id === line.ingredientId
-                      );
-
-                      return (
-                        <tr key={`${line.ingredientId}-${index}`}>
-                          <td style={cellStyle}>
-                            {ingredient?.name || "-"}
-                          </td>
-                          <td style={cellStyle}>
-                            {line.quantity} {ingredient?.unit}
-                          </td>
-                          <td style={cellStyle}>
-                            {formatRupiah(
-                              calculateIngredientCost(
-                                line.ingredientId,
-                                line.quantity
-                              )
-                            )}
-                          </td>
+                  <div
+                    style={{
+                      overflowX: "auto",
+                      marginTop: "20px",
+                    }}
+                  >
+                    <table style={tableStyle}>
+                      <thead>
+                        <tr>
+                          <th style={cellStyle}>Bahan</th>
+                          <th style={cellStyle}>Jumlah</th>
+                          <th style={cellStyle}>Biaya</th>
+                          <th style={cellStyle}>Aksi</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      </thead>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(220px, 1fr))",
-                  gap: "16px",
-                  marginTop: "22px",
-                }}
-              >
-                <div style={summaryCardStyle}>
-                  <span>HPP per Porsi</span>
-                  <strong>{formatRupiah(selectedRecipeCost)}</strong>
-                </div>
+                      <tbody>
+                        {selectedMenuLines.length === 0 ? (
+                          <tr>
+                            <td style={cellStyle} colSpan={4}>
+                              Belum ada bahan dalam resep ini.
+                            </td>
+                          </tr>
+                        ) : (
+                          selectedMenuLines.map((line) => {
+                            const ingredient = ingredients.find(
+                              (item) => item.id === line.bahan_id
+                            );
 
-                <div style={summaryCardStyle}>
-                  <span>Harga Jual</span>
-                  <strong>
-                    {formatRupiah(selectedRecipe.sellingPrice)}
-                  </strong>
-                </div>
+                            return (
+                              <tr key={line.id}>
+                                <td style={cellStyle}>
+                                  {ingredient?.nama_bahan || "-"}
+                                </td>
+                                <td style={cellStyle}>
+                                  {line.jumlah}{" "}
+                                  {ingredient?.satuan || ""}
+                                </td>
+                                <td style={cellStyle}>
+                                  {formatRupiah(
+                                    calculateIngredientCost(
+                                      line.bahan_id,
+                                      line.jumlah
+                                    )
+                                  )}
+                                </td>
+                                <td style={cellStyle}>
+                                  <button
+                                    onClick={() =>
+                                      deleteRecipeLine(line.id)
+                                    }
+                                    disabled={saving}
+                                    style={deleteButtonStyle}
+                                  >
+                                    Hapus
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
 
-                <div style={summaryCardStyle}>
-                  <span>Margin Kotor</span>
-                  <strong>
-                    {formatRupiah(selectedRecipeMargin)}
-                  </strong>
-                </div>
-              </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(220px, 1fr))",
+                      gap: "16px",
+                      marginTop: "22px",
+                    }}
+                  >
+                    <div style={summaryCardStyle}>
+                      <span>HPP per Porsi</span>
+                      <strong>
+                        {formatRupiah(selectedMenuCost)}
+                      </strong>
+                    </div>
+
+                    <div style={summaryCardStyle}>
+                      <span>Harga Jual</span>
+                      <strong>
+                        {formatRupiah(selectedMenu.harga_jual)}
+                      </strong>
+                    </div>
+
+                    <div style={summaryCardStyle}>
+                      <span>Margin Kotor</span>
+                      <strong>
+                        {formatRupiah(selectedMenuMargin)}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: "20px" }}>
+                    <button
+                      onClick={() => deleteMenu(selectedMenu.id)}
+                      disabled={saving}
+                      style={dangerButtonStyle}
+                    >
+                      Hapus Menu Ini
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           )}
         </section>
@@ -522,6 +874,19 @@ export default function HppPage() {
     </main>
   );
 }
+
+const cardStyle: React.CSSProperties = {
+  background: "#ffffff",
+  borderRadius: "16px",
+  padding: "22px",
+  marginBottom: "20px",
+  boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+  marginTop: 0,
+  color: "#0f766e",
+};
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -545,10 +910,30 @@ const buttonStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
+const deleteButtonStyle: React.CSSProperties = {
+  border: "none",
+  borderRadius: "8px",
+  padding: "8px 12px",
+  background: "#fee2e2",
+  color: "#b91c1c",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const dangerButtonStyle: React.CSSProperties = {
+  border: "none",
+  borderRadius: "10px",
+  padding: "12px 16px",
+  background: "#dc2626",
+  color: "#ffffff",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
 const tableStyle: React.CSSProperties = {
   width: "100%",
   borderCollapse: "collapse",
-  minWidth: "500px",
+  minWidth: "650px",
 };
 
 const cellStyle: React.CSSProperties = {
@@ -566,4 +951,13 @@ const summaryCardStyle: React.CSSProperties = {
   flexDirection: "column",
   gap: "10px",
   color: "#166534",
+};
+
+const countBadgeStyle: React.CSSProperties = {
+  background: "#ccfbf1",
+  color: "#115e59",
+  borderRadius: "999px",
+  padding: "6px 12px",
+  fontSize: "13px",
+  fontWeight: 700,
 };

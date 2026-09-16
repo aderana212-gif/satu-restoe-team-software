@@ -23,7 +23,6 @@ type Report = {
 
 const blankExpense = (): ExpenseInput => ({ keterangan: "", nominal: "" });
 const blankExpenses = () => Array.from({ length: 10 }, blankExpense);
-
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value || 0);
 const dateLabel = (value: string) => value ? new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(`${value}T00:00:00`)) : "-";
 
@@ -102,7 +101,11 @@ export default function LaporanKasirPage() {
     const result = editingId ? await supabase.from("laporan_kasir").update(payload).eq("id", editingId) : await supabase.from("laporan_kasir").insert(payload);
     setSaving(false);
     if (result.error) { alert(`Gagal ${editingId ? "mengubah" : "menyimpan"} laporan: ${result.error.message}`); return; }
-    alert(editingId ? "Laporan berhasil diperbarui." : "Laporan berhasil disimpan."); resetForm(false); await loadReports();
+    const wasEditing = Boolean(editingId);
+    alert(wasEditing ? "Laporan berhasil diperbarui." : "Laporan berhasil disimpan.");
+    if (wasEditing) resetForm(false);
+    else setEditingId(null);
+    await loadReports();
   };
 
   const deleteReport = async (id: string) => {
@@ -113,7 +116,20 @@ export default function LaporanKasirPage() {
   };
 
   const sendWhatsApp = (report?: Report) => {
-    const current: Report = report ?? { id: "draft", tanggal, nama_kasir: namaKasir, tunai: num(tunai), qris: num(qris), transfer_bca: num(transferBca), discount: num(discount), compliment_ttd: num(compliment), omzet_kotor: omzetKotor, pengeluaran_json: expenses.map((item, index) => ({ nomor: index + 1, keterangan: item.keterangan.trim(), nominal: num(item.nominal) })).filter((item) => item.keterangan || (item.nominal || 0) > 0), total_pengeluaran: totalPengeluaran, omzet_bersih: omzetBersih };
+    const current: Report = report ?? {
+      id: "draft",
+      tanggal,
+      nama_kasir: namaKasir,
+      tunai: num(tunai),
+      qris: num(qris),
+      transfer_bca: num(transferBca),
+      discount: num(discount),
+      compliment_ttd: num(compliment),
+      omzet_kotor: omzetKotor,
+      pengeluaran_json: expenses.map((item, index) => ({ nomor: index + 1, keterangan: item.keterangan.trim(), nominal: num(item.nominal) })).filter((item) => item.keterangan || (item.nominal || 0) > 0),
+      total_pengeluaran: totalPengeluaran,
+      omzet_bersih: omzetBersih,
+    };
     if (!current.tanggal || !current.nama_kasir.trim()) { alert("Isi tanggal dan nama kasir terlebih dahulu."); return; }
     window.location.href = `whatsapp://send?text=${encodeURIComponent(messageFromReport(current))}`;
   };

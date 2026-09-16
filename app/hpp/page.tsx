@@ -56,10 +56,20 @@ const buttonStyle = {
   cursor: "pointer",
 };
 
+const smallButtonStyle = {
+  border: 0,
+  borderRadius: "9px",
+  padding: "8px 11px",
+  background: "#dbeafe",
+  color: "#1d4ed8",
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
 const deleteButtonStyle = {
   border: 0,
-  borderRadius: "10px",
-  padding: "9px 13px",
+  borderRadius: "9px",
+  padding: "8px 11px",
   background: "#fee2e2",
   color: "#b91c1c",
   fontWeight: 700,
@@ -75,12 +85,12 @@ const sectionTitleStyle = {
 const tableStyle = {
   width: "100%",
   borderCollapse: "collapse" as const,
-  minWidth: "600px",
+  minWidth: "560px",
 };
 
 const cellStyle = {
   textAlign: "left" as const,
-  padding: "14px 10px",
+  padding: "13px 10px",
   borderBottom: "1px solid #eaecf0",
   verticalAlign: "middle" as const,
 };
@@ -118,6 +128,8 @@ export default function HppPage() {
   const [selectedIngredientId, setSelectedIngredientId] = useState("");
   const [recipeQuantity, setRecipeQuantity] = useState("");
   const [targetHppPercent, setTargetHppPercent] = useState("30");
+  const [editingRecipeId, setEditingRecipeId] = useState<number | null>(null);
+  const [editingQuantity, setEditingQuantity] = useState("");
 
   async function loadData() {
     setLoading(true);
@@ -178,7 +190,11 @@ export default function HppPage() {
     setMenus(loadedMenus);
     setRecipeLines(loadedRecipeLines);
     setSelectedMenuId((current) =>
-      loadedMenus.length ? current && loadedMenus.some((m) => m.id === current) ? current : loadedMenus[0].id : null
+      loadedMenus.length
+        ? current && loadedMenus.some((menu) => menu.id === current)
+          ? current
+          : loadedMenus[0].id
+        : null
     );
     setSelectedIngredientId((current) =>
       current || (loadedIngredients[0] ? String(loadedIngredients[0].id) : "")
@@ -196,12 +212,14 @@ export default function HppPage() {
     [recipeLines, selectedMenuId]
   );
 
-  const selectedMenuCost = useMemo(() => {
-    return selectedMenuLines.reduce((total, line) => {
-      const ingredient = ingredients.find((item) => item.id === line.bahan_id);
-      return total + (ingredient ? ingredient.harga * line.jumlah : 0);
-    }, 0);
-  }, [selectedMenuLines, ingredients]);
+  const selectedMenuCost = useMemo(
+    () =>
+      selectedMenuLines.reduce((total, line) => {
+        const ingredient = ingredients.find((item) => item.id === line.bahan_id);
+        return total + (ingredient ? ingredient.harga * line.jumlah : 0);
+      }, 0),
+    [selectedMenuLines, ingredients]
+  );
 
   const hppPerPorsi = selectedMenu
     ? selectedMenuCost / Math.max(selectedMenu.porsi, 1)
@@ -215,7 +233,7 @@ export default function HppPage() {
   const marginPercent = selectedMenu?.harga_jual
     ? (marginRupiah / selectedMenu.harga_jual) * 100
     : 0;
-  const targetPercent = Math.max(Number(targetHppPercent) || 0, 1);
+  const targetPercent = Math.min(Math.max(Number(targetHppPercent) || 30, 1), 100);
   const recommendedSellingPrice = hppPerPorsi / (targetPercent / 100);
 
   function showSuccess(message: string) {
@@ -229,7 +247,7 @@ export default function HppPage() {
       return;
     }
     const price = Number(ingredientPrice);
-    if (price <= 0) {
+    if (!Number.isFinite(price) || price <= 0) {
       alert("Harga bahan harus lebih dari 0.");
       return;
     }
@@ -260,7 +278,7 @@ export default function HppPage() {
     }
     const portion = Number(menuPortion);
     const sellingPrice = Number(menuSellingPrice);
-    if (portion <= 0 || sellingPrice <= 0) {
+    if (!Number.isFinite(portion) || portion <= 0 || !Number.isFinite(sellingPrice) || sellingPrice <= 0) {
       alert("Porsi dan harga jual harus lebih dari 0.");
       return;
     }
@@ -297,14 +315,14 @@ export default function HppPage() {
     }
     const quantity = Number(recipeQuantity);
     const ingredientId = Number(selectedIngredientId);
-    if (quantity <= 0) {
+    if (!Number.isFinite(quantity) || quantity <= 0) {
       alert("Jumlah bahan harus lebih dari 0.");
       return;
     }
 
     const duplicate = selectedMenuLines.find((line) => line.bahan_id === ingredientId);
     if (duplicate) {
-      alert("Bahan ini sudah ada dalam resep. Silakan hapus atau ubah jumlah bahan yang sudah ada agar tidak terhitung ganda.");
+      alert("Bahan ini sudah ada dalam resep. Gunakan tombol Ubah untuk mengganti jumlahnya.");
       return;
     }
 
@@ -326,9 +344,35 @@ export default function HppPage() {
     setSaving(false);
   }
 
+  async function updateRecipeLine(id: number) {
+    const quantity = Number(editingQuantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      alert("Jumlah bahan harus lebih dari 0.");
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage("");
+    const { error } = await supabase
+      .from("hpp_resep_detail")
+      .update({ jumlah: quantity })
+      .eq("id", id);
+    if (error) {
+      setErrorMessage(`Gagal mengubah jumlah resep: ${error.message}`);
+      setSaving(false);
+      return;
+    }
+    setEditingRecipeId(null);
+    setEditingQuantity("");
+    await loadData();
+    showSuccess("Jumlah bahan berhasil diubah.");
+    setSaving(false);
+  }
+
   async function deleteIngredient(id: number) {
     if (!confirm("Hapus bahan ini? Jika sudah dipakai dalam resep, penghapusan bisa gagal.")) return;
     setSaving(true);
+    setErrorMessage("");
     const { error } = await supabase.from("hpp_bahan").delete().eq("id", id);
     if (error) {
       setErrorMessage(`Gagal menghapus bahan: ${error.message}`);
@@ -364,6 +408,7 @@ export default function HppPage() {
   async function deleteRecipeLine(id: number) {
     if (!confirm("Hapus bahan ini dari resep?")) return;
     setSaving(true);
+    setErrorMessage("");
     const { error } = await supabase.from("hpp_resep_detail").delete().eq("id", id);
     if (error) {
       setErrorMessage(`Gagal menghapus detail resep: ${error.message}`);
@@ -379,12 +424,16 @@ export default function HppPage() {
     <main style={{ minHeight: "100vh", background: "#f5f7fb", padding: "20px", color: "#172033", fontFamily: "Arial, sans-serif" }}>
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
         <div style={{ marginBottom: "20px" }}>
-          <Link href="/" style={{ color: "#0f766e", textDecoration: "none", fontWeight: 700 }}>← Kembali ke Dashboard</Link>
+          <Link href="/" style={{ color: "#0f766e", textDecoration: "none", fontWeight: 700 }}>
+            ← Kembali ke Dashboard
+          </Link>
         </div>
 
         <header style={{ ...cardStyle, marginBottom: "20px" }}>
           <h1 style={{ margin: 0, color: "#0f766e", fontSize: "28px" }}>HPP & Harga Jual</h1>
-          <p style={{ color: "#667085", marginBottom: 0 }}>Alur: Bahan → Menu → Resep → Perhitungan HPP dan harga jual otomatis.</p>
+          <p style={{ color: "#667085", marginBottom: 0 }}>
+            Alur: Bahan → Menu → Resep → Perhitungan HPP dan harga jual otomatis.
+          </p>
           {loading && <p style={{ color: "#667085" }}>Memuat data dari Supabase...</p>}
           {saving && <p style={{ color: "#0f766e", fontWeight: 700 }}>Menyimpan data...</p>}
           {successMessage && <div style={{ background: "#dcfce7", color: "#166534", padding: "12px", borderRadius: "10px", marginTop: "12px" }}>{successMessage}</div>}
@@ -396,16 +445,32 @@ export default function HppPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
             <input value={ingredientName} onChange={(e) => setIngredientName(e.target.value)} placeholder="Nama bahan" style={inputStyle} />
             <select value={ingredientUnit} onChange={(e) => setIngredientUnit(e.target.value)} style={inputStyle}>
-              <option value="kg">Kilogram</option><option value="gram">Gram</option><option value="liter">Liter</option><option value="ml">Mililiter</option><option value="pcs">Pcs</option><option value="pack">Pack</option><option value="porsi">Porsi</option>
+              <option value="kg">Kilogram</option>
+              <option value="gram">Gram</option>
+              <option value="liter">Liter</option>
+              <option value="ml">Mililiter</option>
+              <option value="pcs">Pcs</option>
+              <option value="pack">Pack</option>
+              <option value="porsi">Porsi</option>
             </select>
             <input type="number" min="0" value={ingredientPrice} onChange={(e) => setIngredientPrice(e.target.value)} placeholder="Harga beli per satuan" style={inputStyle} />
           </div>
           <button onClick={addIngredient} disabled={saving} style={buttonStyle}>Simpan Bahan</button>
 
-          <div style={{ overflowX: "auto", marginTop: "20px" }}>
-            <table style={tableStyle}><thead><tr><th style={cellStyle}>Nama Bahan</th><th style={cellStyle}>Satuan</th><th style={cellStyle}>Harga</th><th style={cellStyle}>Aksi</th></tr></thead><tbody>
-              {ingredients.length === 0 ? <tr><td style={cellStyle} colSpan={4}>Belum ada bahan.</td></tr> : ingredients.map((ingredient) => <tr key={ingredient.id}><td style={cellStyle}>{ingredient.nama_bahan}</td><td style={cellStyle}>{ingredient.satuan}</td><td style={cellStyle}>{formatRupiah(ingredient.harga)}</td><td style={cellStyle}><button onClick={() => deleteIngredient(ingredient.id)} disabled={saving} style={deleteButtonStyle}>Hapus</button></td></tr>)}
-            </tbody></table>
+          <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
+            <table style={tableStyle}>
+              <thead><tr><th style={cellStyle}>Nama Bahan</th><th style={cellStyle}>Satuan</th><th style={cellStyle}>Harga</th><th style={cellStyle}>Aksi</th></tr></thead>
+              <tbody>
+                {ingredients.length === 0 ? <tr><td style={cellStyle} colSpan={4}>Belum ada bahan.</td></tr> : ingredients.map((ingredient) => (
+                  <tr key={ingredient.id}>
+                    <td style={cellStyle}>{ingredient.nama_bahan}</td>
+                    <td style={cellStyle}>{ingredient.satuan}</td>
+                    <td style={cellStyle}>{formatRupiah(ingredient.harga)}</td>
+                    <td style={cellStyle}><button onClick={() => deleteIngredient(ingredient.id)} disabled={saving} style={deleteButtonStyle}>Hapus</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
 
@@ -418,10 +483,20 @@ export default function HppPage() {
           </div>
           <button onClick={addMenu} disabled={saving} style={buttonStyle}>Simpan Menu</button>
 
-          <div style={{ overflowX: "auto", marginTop: "20px" }}>
-            <table style={tableStyle}><thead><tr><th style={cellStyle}>Menu</th><th style={cellStyle}>Porsi</th><th style={cellStyle}>Harga Jual</th><th style={cellStyle}>Aksi</th></tr></thead><tbody>
-              {menus.length === 0 ? <tr><td style={cellStyle} colSpan={4}>Belum ada menu.</td></tr> : menus.map((menu) => <tr key={menu.id}><td style={cellStyle}>{menu.nama_menu}</td><td style={cellStyle}>{menu.porsi}</td><td style={cellStyle}>{formatRupiah(menu.harga_jual)}</td><td style={cellStyle}><button onClick={() => deleteMenu(menu.id)} disabled={saving} style={deleteButtonStyle}>Hapus</button></td></tr>)}
-            </tbody></table>
+          <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
+            <table style={tableStyle}>
+              <thead><tr><th style={cellStyle}>Menu</th><th style={cellStyle}>Porsi</th><th style={cellStyle}>Harga Jual</th><th style={cellStyle}>Aksi</th></tr></thead>
+              <tbody>
+                {menus.length === 0 ? <tr><td style={cellStyle} colSpan={4}>Belum ada menu.</td></tr> : menus.map((menu) => (
+                  <tr key={menu.id}>
+                    <td style={cellStyle}>{menu.nama_menu}</td>
+                    <td style={cellStyle}>{menu.porsi}</td>
+                    <td style={cellStyle}>{formatRupiah(menu.harga_jual)}</td>
+                    <td style={cellStyle}><button onClick={() => deleteMenu(menu.id)} disabled={saving} style={deleteButtonStyle}>Hapus</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
 
@@ -431,17 +506,45 @@ export default function HppPage() {
             <select value={selectedMenuId ?? ""} onChange={(e) => setSelectedMenuId(Number(e.target.value))} style={inputStyle}>
               {menus.map((menu) => <option key={menu.id} value={menu.id}>{menu.nama_menu}</option>)}
             </select>
-            {selectedMenu && <div style={{ background: "#f8fafc", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}><strong>{selectedMenu.nama_menu}</strong><div style={{ color: "#667085", marginTop: "6px" }}>Jumlah porsi: {selectedMenu.porsi} | Harga jual: {formatRupiah(selectedMenu.harga_jual)}</div></div>}
+            {selectedMenu && <div style={{ background: "#f8fafc", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
+              <strong>{selectedMenu.nama_menu}</strong>
+              <div style={{ color: "#667085", marginTop: "6px" }}>Jumlah porsi: {selectedMenu.porsi} | Harga jual: {formatRupiah(selectedMenu.harga_jual)}</div>
+            </div>}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
-              <select value={selectedIngredientId} onChange={(e) => setSelectedIngredientId(e.target.value)} style={inputStyle}>{ingredients.length === 0 ? <option value="">Belum ada bahan</option> : ingredients.map((ingredient) => <option key={ingredient.id} value={ingredient.id}>{ingredient.nama_bahan}</option>)}</select>
+              <select value={selectedIngredientId} onChange={(e) => setSelectedIngredientId(e.target.value)} style={inputStyle}>
+                {ingredients.length === 0 ? <option value="">Belum ada bahan</option> : ingredients.map((ingredient) => <option key={ingredient.id} value={ingredient.id}>{ingredient.nama_bahan}</option>)}
+              </select>
               <input type="number" min="0" step="0.001" value={recipeQuantity} onChange={(e) => setRecipeQuantity(e.target.value)} placeholder="Jumlah bahan" style={inputStyle} />
             </div>
             <button onClick={addRecipeLine} disabled={saving || ingredients.length === 0} style={buttonStyle}>Tambah ke Resep</button>
 
-            <div style={{ overflowX: "auto", marginTop: "20px" }}>
-              <table style={tableStyle}><thead><tr><th style={cellStyle}>Bahan</th><th style={cellStyle}>Jumlah</th><th style={cellStyle}>Biaya</th><th style={cellStyle}>Aksi</th></tr></thead><tbody>
-                {selectedMenuLines.length === 0 ? <tr><td style={cellStyle} colSpan={4}>Belum ada bahan dalam resep ini.</td></tr> : selectedMenuLines.map((line) => { const ingredient = ingredients.find((item) => item.id === line.bahan_id); const cost = ingredient ? ingredient.harga * line.jumlah : 0; return <tr key={line.id}><td style={cellStyle}>{ingredient?.nama_bahan || "-"}</td><td style={cellStyle}>{line.jumlah} {ingredient?.satuan || ""}</td><td style={cellStyle}>{formatRupiah(cost)}</td><td style={cellStyle}><button onClick={() => deleteRecipeLine(line.id)} disabled={saving} style={deleteButtonStyle}>Hapus</button></td></tr>; })}
-              </tbody></table>
+            <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
+              <table style={tableStyle}>
+                <thead><tr><th style={cellStyle}>Bahan</th><th style={cellStyle}>Jumlah</th><th style={cellStyle}>Biaya</th><th style={cellStyle}>Aksi</th></tr></thead>
+                <tbody>
+                  {selectedMenuLines.length === 0 ? <tr><td style={cellStyle} colSpan={4}>Belum ada bahan dalam resep ini.</td></tr> : selectedMenuLines.map((line) => {
+                    const ingredient = ingredients.find((item) => item.id === line.bahan_id);
+                    const cost = ingredient ? ingredient.harga * line.jumlah : 0;
+                    const isEditing = editingRecipeId === line.id;
+                    return <tr key={line.id}>
+                      <td style={cellStyle}>{ingredient?.nama_bahan || "-"}</td>
+                      <td style={cellStyle}>
+                        {isEditing ? <input type="number" min="0" step="0.001" value={editingQuantity} onChange={(e) => setEditingQuantity(e.target.value)} style={{ ...inputStyle, marginBottom: 0, minWidth: "90px" }} /> : `${line.jumlah} ${ingredient?.satuan || ""}`}
+                      </td>
+                      <td style={cellStyle}>{formatRupiah(cost)}</td>
+                      <td style={cellStyle}>
+                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                          {isEditing ? <>
+                            <button onClick={() => updateRecipeLine(line.id)} disabled={saving} style={smallButtonStyle}>Simpan</button>
+                            <button onClick={() => { setEditingRecipeId(null); setEditingQuantity(""); }} disabled={saving} style={deleteButtonStyle}>Batal</button>
+                          </> : <button onClick={() => { setEditingRecipeId(line.id); setEditingQuantity(String(line.jumlah)); }} disabled={saving} style={smallButtonStyle}>Ubah</button>}
+                          <button onClick={() => deleteRecipeLine(line.id)} disabled={saving} style={deleteButtonStyle}>Hapus</button>
+                        </div>
+                      </td>
+                    </tr>;
+                  })}
+                </tbody>
+              </table>
             </div>
           </>}
         </section>
@@ -454,18 +557,18 @@ export default function HppPage() {
               <div style={{ background: "#ecfdf3", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#166534" }}>HPP per porsi</div><strong style={{ fontSize: "24px", color: "#166534" }}>{formatRupiah(hppPerPorsi)}</strong></div>
               <div style={{ background: "#eff6ff", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#1d4ed8" }}>Harga jual</div><strong style={{ fontSize: "24px", color: "#1d4ed8" }}>{formatRupiah(selectedMenu.harga_jual)}</strong></div>
               <div style={{ background: "#eff6ff", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#1d4ed8" }}>Margin kotor</div><strong style={{ fontSize: "24px", color: marginRupiah >= 0 ? "#1d4ed8" : "#b91c1c" }}>{formatRupiah(marginRupiah)}</strong></div>
-              <div style={{ background: "#fefce8", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#854d0e" }}>HPP % dari harga jual</div><strong style={{ fontSize: "24px", color: "#854d0e" }}>{formatPercent(hppPercent)}</strong></div>
-              <div style={{ background: "#fefce8", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#854d0e" }}>Margin %</div><strong style={{ fontSize: "24px", color: "#854d0e" }}>{formatPercent(marginPercent)}</strong></div>
+              <div style={{ background: "#fffbeb", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#92400e" }}>HPP % dari harga jual</div><strong style={{ fontSize: "24px", color: "#92400e" }}>{formatPercent(hppPercent)}</strong></div>
+              <div style={{ background: "#fffbeb", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#92400e" }}>Margin %</div><strong style={{ fontSize: "24px", color: "#92400e" }}>{formatPercent(marginPercent)}</strong></div>
             </div>
 
-            <div style={{ marginTop: "22px", borderTop: "1px solid #eaecf0", paddingTop: "20px" }}>
-              <h3 style={{ color: "#0f766e", marginTop: 0 }}>Harga Jual Berdasarkan Target HPP</h3>
-              <p style={{ color: "#667085" }}>Masukkan target HPP, sistem menghitung harga jual rekomendasi otomatis.</p>
-              <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-                <input type="number" min="1" max="100" value={targetHppPercent} onChange={(e) => setTargetHppPercent(e.target.value)} style={{ ...inputStyle, maxWidth: "220px", marginBottom: 0 }} />
-                <span style={{ fontWeight: 700, color: "#344054" }}>% target HPP</span>
+            <div style={{ borderTop: "1px solid #eaecf0", marginTop: "24px", paddingTop: "22px" }}>
+              <h3 style={{ margin: "0 0 8px", color: "#0f766e", fontSize: "20px" }}>Harga Jual Berdasarkan Target HPP</h3>
+              <p style={{ color: "#667085", marginTop: 0 }}>Masukkan target HPP sebagai persentase dari harga jual.</p>
+              <div style={{ maxWidth: "260px" }}>
+                <input type="number" min="1" max="100" value={targetHppPercent} onChange={(e) => setTargetHppPercent(e.target.value)} style={inputStyle} />
+                <strong>% target HPP</strong>
               </div>
-              <div style={{ background: "#ecfdf3", borderRadius: "14px", padding: "18px", marginTop: "16px" }}>
+              <div style={{ background: "#ecfdf3", borderRadius: "14px", padding: "18px", marginTop: "14px" }}>
                 <div style={{ color: "#166534" }}>Harga jual rekomendasi</div>
                 <strong style={{ fontSize: "28px", color: "#166534" }}>{formatRupiah(recommendedSellingPrice)}</strong>
                 <div style={{ color: "#667085", marginTop: "8px" }}>Rumus: HPP per porsi ÷ target HPP %</div>
@@ -474,7 +577,7 @@ export default function HppPage() {
           </>}
         </section>
 
-        <footer style={{ textAlign: "center", marginTop: "30px", color: "#98a2b3", fontSize: "13px" }}>Satu Restoe Team Software © 2026</footer>
+        <footer style={{ textAlign: "center", color: "#98a2b3", padding: "8px 0 20px" }}>Satu Restoe Team Software © 2026</footer>
       </div>
     </main>
   );

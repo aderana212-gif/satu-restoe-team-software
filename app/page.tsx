@@ -35,6 +35,14 @@ const modules = [
     icon: "💰",
     color: "#f5f3ff",
   },
+  {
+    title: "Gudang & Inventaris",
+    description:
+      "Kelola master barang, stok, gudang, barang masuk, barang keluar, dan stock opname.",
+    href: "/gudang",
+    icon: "🏬",
+    color: "#ecfeff",
+  },
 ];
 
 export default function Home() {

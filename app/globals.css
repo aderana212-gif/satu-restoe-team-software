@@ -108,3 +108,51 @@ button:hover{filter:brightness(.97)}
 @media(max-width:950px){.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.paper header{grid-template-columns:150px minmax(0,1fr) auto}.paper header>svg{width:140px}}
 @media(max-width:650px){.invoice-page{padding:14px}.locked-card{padding:36px 20px}.locked-card p{font-size:18px}.lock-actions{gap:14px}.lock-actions .primary{width:100%}.page-heading{flex-direction:column}.form-grid{grid-template-columns:1fr}.items-head{display:none}.item-row{grid-template-columns:minmax(0,1fr) 70px 110px 58px}.option-row{display:grid;grid-template-columns:1fr 1fr;align-items:end}.option-row label{min-width:0}.section-title{align-items:flex-start;flex-direction:column}.section-title button{width:100%}.button-row button{flex-basis:100%}.paper{width:100%;min-height:0;padding:5mm}.paper header{grid-template-columns:1fr;gap:8px}.paper header>svg{width:150px;height:70px}.paper .contact{text-align:left;max-width:none}.invoice-title{display:block}.number-box{margin-top:12px}.info-boxes,.bottom-info{display:block}.info-boxes>div{margin-bottom:10px}.paper table{font-size:7px}.paper th,.paper td{padding:4px}.bottom-info .bank-box{margin-bottom:12px}.paper footer{margin-top:25px}}
 @media print{body{background:#fff}.invoice-page>*:not(.print-preview),.preview-label{display:none!important}.paper{box-shadow:none;border:0;width:210mm;min-height:297mm;max-width:none;margin:0;padding:12mm}}
+
+/* Invoice Customer: mobile preview must stay inside the viewport */
+@media (max-width: 650px) {
+  .invoice-page { width: 100% !important; max-width: 100% !important; overflow-x: hidden !important; }
+  .preview-section { width: 100% !important; max-width: 100% !important; overflow: hidden !important; }
+  .invoice-paper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 14px 0 0 !important;
+    padding: 12px !important;
+    overflow: hidden !important;
+  }
+  .paper-top {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    min-width: 0 !important;
+  }
+  .paper-logo { width: 100% !important; max-width: 230px !important; margin: 0 auto !important; background: url('/satu-restoe-logo.svg') center / contain no-repeat !important; }
+  .paper-logo > .brand-logo { visibility: hidden !important; width: 100% !important; }
+  .paper-company { min-width: 0 !important; }
+  .paper-contact { min-width: 0 !important; width: 100% !important; text-align: left !important; overflow-wrap: anywhere !important; }
+  .paper-line { margin: 12px 0 !important; }
+  .paper-title-row { display: block !important; min-width: 0 !important; }
+  .paper-title-row > div:first-child { min-width: 0 !important; }
+  .paper-title-row em { display: block !important; line-height: 1.4 !important; }
+  .paper-invoice-box { width: 100% !important; min-width: 0 !important; margin-top: 12px !important; }
+  .paper-info-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 10px !important; min-width: 0 !important; }
+  .paper-info-box { min-width: 0 !important; }
+  .paper-table { width: 100% !important; min-width: 0 !important; table-layout: fixed !important; font-size: 10px !important; }
+  .paper-table th, .paper-table td { padding: 6px 4px !important; overflow-wrap: anywhere !important; word-break: normal !important; }
+  .paper-table th:nth-child(1), .paper-table td:nth-child(1) { width: 8% !important; }
+  .paper-table th:nth-child(2), .paper-table td:nth-child(2) { width: 38% !important; }
+  .paper-table th:nth-child(3), .paper-table td:nth-child(3) { width: 12% !important; }
+  .paper-table th:nth-child(4), .paper-table td:nth-child(4) { width: 21% !important; }
+  .paper-table th:nth-child(5), .paper-table td:nth-child(5) { width: 21% !important; }
+  .paper-bottom-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 12px !important; min-width: 0 !important; }
+  .paper-payment, .paper-notes, .paper-signature { min-width: 0 !important; }
+  .paper-payment-content { flex-wrap: wrap !important; }
+  .paper-signature { padding-top: 8px !important; }
+  .paper-signature .signature { width: min(100%, 260px) !important; height: auto !important; }
+  .paper-footer { overflow-wrap: anywhere !important; }
+}
+
+/* Use the supplied Satu Restoe logo in the desktop invoice preview as well. */
+.paper-logo { background: url('/satu-restoe-logo.svg') center / contain no-repeat; }
+.paper-logo > .brand-logo { visibility: hidden; }

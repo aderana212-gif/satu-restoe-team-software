@@ -35,7 +35,7 @@ const money = (value: number | string | null | undefined) => new Intl.NumberForm
 const dateText = (value?: string | null) => { if (!value) return "-"; const date = new Date(`${value}T00:00:00`); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "long", year: "numeric" }).format(date); };
 
 function Logo() { return <div className="wordmark" role="img" aria-label="Satu Restoe">SATU RESTOE</div>; }
-function Signature() { return <img className="signature" src={SIGNATURE_DATA_URL} alt="Tanda tangan Wida Novianti" />; }
+function Signature() { return <img className="signature" src={SIGNATURE_IMAGE_URL} alt="Tanda tangan Wida Novianti" />; }
 
 export default function InvoicePage() {
   const [unlocked, setUnlocked] = useState(false); const [password, setPassword] = useState(""); const [error, setError] = useState("");

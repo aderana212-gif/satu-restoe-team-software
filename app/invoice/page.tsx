@@ -28,7 +28,7 @@ type SavedInvoice = {
   created_at?: string;
 };
 
-const ACCESS_PASSSWORD = "Cinta111178";
+const ACCESS_PASSWORD = "Cinta111178";
 const SIGNATURE_IMAGE_URL = "/ttd-wida-novianti.png";
 const blankItem = (): Item => ({ description: "", qty: "", price: "" });
 const money = (value: number | string | null | undefined) => new Intl.NumberFormat("id-ID").format(Math.round(Number(value) || 0));

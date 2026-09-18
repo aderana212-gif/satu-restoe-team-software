@@ -50,7 +50,28 @@ export default function InvoicePage() {
 
   function unlock() { if (password === "Cinta111178") { setUnlocked(true); setError(""); } else setError("Password salah."); }
   function newInvoice() {
-    setInvoiceNo(String(Date.now()).slice(-6)); setInvoiceDate(today()); setCustomer(""); setAddress(""); setPhone(""); setVenueDate(today()); setVenueTime(""); setLocation("Indoor"); setTax(0); setPaid(0); setKaraokeFree(false); setLiveMusic(false); setLiveMusicPrice(0); setItems([{ description: "", qty: 1, price: 0 }]); setStatus("Form invoice baru siap digunakan.");
+    const currentNumber = Number(invoiceNo.replace(/\D/g, "")) || 0;
+    const savedMax = savedInvoices.reduce((max, invoice) => {
+      const number = Number(invoice.invoiceNo.replace(/\D/g, "")) || 0;
+      return Math.max(max, number);
+    }, 0);
+    const nextNumber = Math.max(2980, currentNumber, savedMax) + 1;
+
+    setInvoiceNo(String(nextNumber).padStart(6, "0"));
+    setInvoiceDate(today());
+    setCustomer("");
+    setAddress("");
+    setPhone("");
+    setVenueDate(today());
+    setVenueTime("");
+    setLocation("Indoor");
+    setTax(0);
+    setPaid(0);
+    setKaraokeFree(false);
+    setLiveMusic(false);
+    setLiveMusicPrice(0);
+    setItems([{ description: "", qty: 1, price: 0 }]);
+    setStatus("Form invoice baru siap digunakan.");
   }
   function updateItem(index: number, key: keyof InvoiceItem, value: string) { setItems(current => current.map((item, itemIndex) => itemIndex !== index ? item : key === "description" ? { ...item, description: value } : { ...item, [key]: Number(value) || 0 })); }
   function addItem() { setItems(current => [...current, { description: "", qty: 1, price: 0 }]); }

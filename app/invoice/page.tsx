@@ -104,6 +104,18 @@ export default function InvoicePage() {
     if (liveMusic) addRow(["", "Fasilitas: Live Music", "", money(liveMusicPrice), money(liveMusicPrice)]);
     const summary = (label: string, value: number, highlight = false) => { doc.setFillColor(highlight ? lightBlue.r : 255, highlight ? lightBlue.g : 255, highlight ? lightBlue.b : 255); doc.setDrawColor(borderBlue.r, borderBlue.g, borderBlue.b); doc.rect(left, y, 153, 8, "FD"); doc.rect(left + 153, y, 42, 8, "FD"); doc.setTextColor(35, 55, 80); doc.setFont("helvetica", highlight ? "bold" : "normal"); doc.text(label, left + 149, y + 5, { align: "right" }); doc.text(money(value), right - 2, y + 5, { align: "right" }); y += 8; };
     summary("Total Pesanan dan Fasilitas", orderAndFacilities); summary("Pajak", Number(tax || 0)); summary("Total Pesanan", total, true); summary("Uang Muka", Number(paid || 0)); summary("Bayar Sehabis Event", Number(paidAfterEvent || 0)); summary("Sisa Pembayaran", remaining, true);
+    if (isPaidOff) {
+      const stampX = 18;
+      const stampY = y + 5;
+      doc.setDrawColor(22, 131, 75);
+      doc.setTextColor(22, 131, 75);
+      doc.setLineWidth(1.2);
+      doc.roundedRect(stampX, stampY, 43, 16, 3, 3, "S");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(15);
+      doc.text("LUNAS", stampX + 8, stampY + 10);
+      y += 23;
+    }
     y += 10; doc.setDrawColor(borderBlue.r, borderBlue.g, borderBlue.b); doc.setFillColor(248, 252, 255); doc.roundedRect(left, y, 92, 29, 3, 3, "FD"); doc.setFillColor(lightBlue.r, lightBlue.g, lightBlue.b); doc.rect(left, y, 92, 7, "F"); doc.setTextColor(blue.r, blue.g, blue.b); doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text("PEMBAYARAN DITRANSFER KE", left + 3, y + 5); doc.setTextColor(35, 55, 80); doc.setFont("helvetica", "normal"); doc.text(["Bank: BCA", "a.n.: Wida Novianti", "No. Rekening: 7740731178"], left + 3, y + 14, { lineHeightFactor: 1.5 });
     const sx = 122; doc.setTextColor(blue.r, blue.g, blue.b); doc.setFont("helvetica", "bold"); doc.text("Terima Kasih", sx, y + 5); doc.setTextColor(35, 55, 80); doc.setFont("helvetica", "italic"); doc.text("Atas Pesanan Bapak/Ibu", sx, y + 11); doc.setFont("helvetica", "normal"); doc.text("Satu Restoe Pangandaran", sx, y + 17); doc.addImage(signatureDataUrl, "PNG", sx, y + 20, 55, 25); doc.setDrawColor(blue.r, blue.g, blue.b); doc.setLineWidth(0.6); doc.line(sx, y + 48, right, y + 48); doc.setTextColor(blue.r, blue.g, blue.b); doc.setFont("helvetica", "bold"); doc.text("Wida Novianti", sx, y + 54); doc.setDrawColor(blue.r, blue.g, blue.b); doc.setLineWidth(0.8); doc.line(left, 278, right, 278); doc.setTextColor(35, 55, 80); doc.setFont("helvetica", "italic"); doc.setFontSize(9); doc.text("— Nikmati Rasa, Rayakan Kebersamaan —", 105, 285, { align: "center" }); doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.text("www.saturestoepangandaran.vercel.app", 105, 290, { align: "center" });
     return doc;

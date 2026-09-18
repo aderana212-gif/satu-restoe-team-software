@@ -107,7 +107,7 @@ export default function InvoicePage() {
   const remaining = Math.max(total - Number(paid || 0), 0);
 
   function unlock() {
-    if (password === "1234" || password === "saturestoe") {
+    if (password === "Cinta111178") {
       setUnlocked(true);
       setError("");
     } else {

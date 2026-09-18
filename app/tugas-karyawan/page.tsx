@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
+type CostStatus = "none" | "pending" | "approved" | "rejected" | "paid";
 type Task = {
   id: string;
   employee_name: string;
@@ -15,40 +16,47 @@ type Task = {
   needs_cost: boolean;
   cost_description: string | null;
   requested_amount: number;
-  cost_status: "none" | "pending" | "approved" | "rejected" | "paid";
-  cost_notes?: string | null;
+  cost_status: CostStatus;
 };
 
-const emptyForm = {
+type FormState = {
+  employee_name: string;
+  task_date: string;
+  due_date: string;
+  task_description: string;
+  notes: string;
+  priority: Task["priority"];
+  needs_cost: boolean;
+  cost_description: string;
+  requested_amount: string;
+};
+
+const newForm = (): FormState => ({
   employee_name: "",
   task_date: new Date().toISOString().slice(0, 10),
   due_date: "",
   task_description: "",
   notes: "",
-  priority: "normal" as Task["priority"],
+  priority: "normal",
   needs_cost: false,
   cost_description: "",
   requested_amount: "",
-};
+});
 
 const money = (value: number) =>
-  new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value || 0);
+  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value || 0);
 
-const costStatusLabel = (status: Task["cost_status"]) => {
-  if (status === "pending") return "Menunggu Persetujuan";
-  if (status === "approved") return "Disetujui";
-  if (status === "rejected") return "Ditolak";
-  if (status === "paid") return "Sudah Dibayar";
-  return "Tidak Ada Biaya";
-};
+const costLabel = (status: CostStatus) => ({
+  none: "Tidak Ada Biaya",
+  pending: "Menunggu Persetujuan",
+  approved: "Disetujui",
+  rejected: "Ditolak",
+  paid: "Sudah Dibayar",
+}[status]);
 
 export default function TugasKaryawanPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<FormState>(newForm());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<"all" | "pending" | "done">("all");
@@ -58,56 +66,33 @@ export default function TugasKaryawanPage() {
 
   async function loadTasks() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("employee_tasks")
-      .select("*")
-      .order("task_date", { ascending: false })
-      .order("created_at", { ascending: false });
-
+    const { data, error } = await supabase.from("employee_tasks").select("*").order("task_date", { ascending: false }).order("created_at", { ascending: false });
     if (error) setMessage(`Gagal memuat: ${error.message}`);
     else setTasks((data || []) as Task[]);
     setLoading(false);
   }
 
-  useEffect(() => {
-    loadTasks();
-  }, []);
+  useEffect(() => { loadTasks(); }, []);
 
   const visibleTasks = tasks.filter((task) => {
     const q = search.toLowerCase();
-    return (
-      (filter === "all" || task.status === filter) &&
-      (!q ||
-        task.employee_name.toLowerCase().includes(q) ||
-        task.task_description.toLowerCase().includes(q))
-    );
+    return (filter === "all" || task.status === filter) && (!q || task.employee_name.toLowerCase().includes(q) || task.task_description.toLowerCase().includes(q));
   });
 
-  function change<K extends keyof typeof form>(
-    key: K,
-    value: (typeof form)[K]
-  ) {
+  function change<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((old) => ({ ...old, [key]: value }));
   }
 
   function reset() {
-    setForm({ ...emptyForm, task_date: new Date().toISOString().slice(0, 10) });
+    setForm(newForm());
     setEditingId(null);
     setShowForm(false);
   }
 
   async function save() {
     setMessage("");
-
-    if (!form.employee_name.trim() || !form.task_description.trim()) {
-      setMessage("Nama karyawan dan uraian tugas wajib diisi.");
-      return;
-    }
-
-    if (form.needs_cost && !form.cost_description.trim()) {
-      setMessage("Keterangan biaya wajib diisi.");
-      return;
-    }
+    if (!form.employee_name.trim() || !form.task_description.trim()) return setMessage("Nama karyawan dan uraian tugas wajib diisi.");
+    if (form.needs_cost && !form.cost_description.trim()) return setMessage("Keterangan biaya wajib diisi.");
 
     const payload = {
       employee_name: form.employee_name.trim(),
@@ -122,540 +107,78 @@ export default function TugasKaryawanPage() {
       cost_status: form.needs_cost ? "pending" : "none",
     };
 
-    const result = editingId
-      ? await supabase.from("employee_tasks").update(payload).eq("id", editingId)
-      : await supabase.from("employee_tasks").insert(payload);
-
-    if (result.error) {
-      setMessage(`Gagal menyimpan: ${result.error.message}`);
-    } else {
-      setMessage(editingId ? "Tugas diperbarui." : "Tugas ditambahkan.");
-      reset();
-      loadTasks();
-    }
+    const result = editingId ? await supabase.from("employee_tasks").update(payload).eq("id", editingId) : await supabase.from("employee_tasks").insert(payload);
+    if (result.error) setMessage(`Gagal menyimpan: ${result.error.message}`);
+    else { setMessage(editingId ? "Tugas diperbarui." : "Tugas ditambahkan."); reset(); loadTasks(); }
   }
 
   async function toggle(task: Task) {
-    const { error } = await supabase
-      .from("employee_tasks")
-      .update({ status: task.status === "done" ? "pending" : "done" })
-      .eq("id", task.id);
-
-    if (error) setMessage(error.message);
-    else loadTasks();
+    const { error } = await supabase.from("employee_tasks").update({ status: task.status === "done" ? "pending" : "done" }).eq("id", task.id);
+    if (error) setMessage(error.message); else loadTasks();
   }
 
-  async function updateCostStatus(
-    task: Task,
-    nextStatus: "approved" | "rejected" | "paid"
-  ) {
-    const labels = {
-      approved: "menyetujui biaya ini",
-      rejected: "menolak biaya ini",
-      paid: "menandai biaya ini sudah dibayar",
-    };
-
-    if (!confirm(`Yakin ingin ${labels[nextStatus]}?`)) return;
-
-    const { error } = await supabase
-      .from("employee_tasks")
-      .update({
-        cost_status: nextStatus,
-        cost_approved_at: nextStatus === "approved" ? new Date().toISOString() : undefined,
-      })
-      .eq("id", task.id);
-
+  async function updateCostStatus(task: Task, nextStatus: "approved" | "rejected" | "paid") {
+    const action = nextStatus === "approved" ? "menyetujui" : nextStatus === "rejected" ? "menolak" : "menandai sudah dibayar";
+    if (!confirm(`Yakin ingin ${action} pengajuan biaya ini?`)) return;
+    const update: Record<string, string> = { cost_status: nextStatus };
+    if (nextStatus === "approved") update.cost_approved_at = new Date().toISOString();
+    if (nextStatus === "paid") update.cost_paid_at = new Date().toISOString();
+    const { error } = await supabase.from("employee_tasks").update(update).eq("id", task.id);
     if (error) setMessage(`Gagal mengubah status biaya: ${error.message}`);
-    else {
-      setMessage(`Status biaya berhasil diubah menjadi ${costStatusLabel(nextStatus)}.`);
-      loadTasks();
-    }
+    else { setMessage(`Status biaya: ${costLabel(nextStatus)}.`); loadTasks(); }
   }
 
   async function remove(task: Task) {
     if (!confirm("Hapus tugas ini?")) return;
-
-    const { error } = await supabase
-      .from("employee_tasks")
-      .delete()
-      .eq("id", task.id);
-
-    if (error) setMessage(error.message);
-    else loadTasks();
+    const { error } = await supabase.from("employee_tasks").delete().eq("id", task.id);
+    if (error) setMessage(error.message); else loadTasks();
   }
 
   function edit(task: Task) {
     setEditingId(task.id);
-    setForm({
-      employee_name: task.employee_name,
-      task_date: task.task_date,
-      due_date: task.due_date || "",
-      task_description: task.task_description,
-      notes: task.notes || "",
-      priority: task.priority,
-      needs_cost: task.needs_cost,
-      cost_description: task.cost_description || "",
-      requested_amount: task.requested_amount ? String(task.requested_amount) : "",
-    });
+    setForm({ employee_name: task.employee_name, task_date: task.task_date, due_date: task.due_date || "", task_description: task.task_description, notes: task.notes || "", priority: task.priority, needs_cost: task.needs_cost, cost_description: task.cost_description || "", requested_amount: task.requested_amount ? String(task.requested_amount) : "" });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function whatsapp(task: Task) {
-    const text = `PERMOHONAN BIAYA TUGAS KARYAWAN\n\nKaryawan: ${task.employee_name}\nTugas: ${task.task_description}\nKeperluan: ${task.cost_description || "-"}\nNominal: ${money(task.requested_amount)}\nStatus: ${costStatusLabel(task.cost_status)}\n\nMohon persetujuan biaya.`;
+    const text = `PERMOHONAN BIAYA TUGAS KARYAWAN\n\nKaryawan: ${task.employee_name}\nTugas: ${task.task_description}\nKeperluan: ${task.cost_description || "-"}\nNominal: ${money(task.requested_amount)}\nStatus: ${costLabel(task.cost_status)}\n\nMohon persetujuan biaya.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#f5f7fb",
-        padding: 24,
-        fontFamily: "Arial, sans-serif",
-        color: "#172033",
-      }}
-    >
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 16,
-            flexWrap: "wrap",
-            marginBottom: 22,
-          }}
-        >
-          <div>
-            <div style={{ color: "#0f766e", fontWeight: 700, fontSize: 13 }}>
-              SATU RESTOE TEAM SOFTWARE
-            </div>
-            <h1 style={{ margin: "8px 0 4px", fontSize: 30 }}>Tugas Karyawan</h1>
-            <p style={{ margin: 0, color: "#667085" }}>
-              Checklist pekerjaan dan permohonan biaya.
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              if (showForm) reset();
-              else setShowForm(true);
-            }}
-            style={{
-              background: "#0f766e",
-              color: "white",
-              border: 0,
-              borderRadius: 10,
-              padding: "12px 18px",
-              fontWeight: 700,
-            }}
-          >
-            {showForm ? "Tutup Form" : "+ Tambah Tugas"}
-          </button>
+    <main className="page">
+      <div className="container">
+        <div className="header"><div><div className="brand">SATU RESTOE TEAM SOFTWARE</div><h1>Tugas Karyawan</h1><p>Checklist pekerjaan dan permohonan biaya.</p></div><button className="primary" onClick={() => showForm ? reset() : setShowForm(true)}>{showForm ? "Tutup Form" : "+ Tambah Tugas"}</button></div>
+        {message && <div className="message">{message}</div>}
+
+        <div className="stats">
+          <div><span>Total</span><strong>{tasks.length}</strong></div>
+          <div><span>Belum Selesai</span><strong>{tasks.filter(t => t.status === "pending").length}</strong></div>
+          <div><span>Selesai</span><strong>{tasks.filter(t => t.status === "done").length}</strong></div>
+          <div><span>Biaya Menunggu</span><strong>{tasks.filter(t => t.needs_cost && t.cost_status === "pending").length}</strong></div>
         </div>
 
-        {message && (
-          <div
-            style={{
-              background: "#fff7ed",
-              border: "1px solid #fed7aa",
-              padding: 12,
-              borderRadius: 10,
-              marginBottom: 16,
-            }}
-          >
-            {message}
-          </div>
-        )}
+        {showForm && <section className="panel form-panel"><h2>{editingId ? "Edit Tugas" : "Tambah Tugas Baru"}</h2><div className="form-grid">
+          <label>Nama Karyawan<input value={form.employee_name} onChange={e => change("employee_name", e.target.value)} placeholder="Nama karyawan" /></label>
+          <label>Prioritas<select value={form.priority} onChange={e => change("priority", e.target.value as Task["priority"])}><option value="normal">Normal</option><option value="penting">Penting</option><option value="mendesak">Mendesak</option></select></label>
+          <label>Tanggal Tugas<input type="date" value={form.task_date} onChange={e => change("task_date", e.target.value)} /></label>
+          <label>Deadline<input type="date" value={form.due_date} onChange={e => change("due_date", e.target.value)} /></label>
+          <label className="full">Uraian Tugas<textarea rows={3} value={form.task_description} onChange={e => change("task_description", e.target.value)} /></label>
+          <label className="full">Catatan<textarea rows={2} value={form.notes} onChange={e => change("notes", e.target.value)} /></label>
+        </div><label className="cost-check"><input type="checkbox" checked={form.needs_cost} onChange={e => change("needs_cost", e.target.checked)} /> Membutuhkan biaya</label>
+        {form.needs_cost && <div className="form-grid cost-grid"><label>Keperluan Biaya<textarea rows={2} value={form.cost_description} onChange={e => change("cost_description", e.target.value)} /></label><label>Nominal<input type="number" value={form.requested_amount} onChange={e => change("requested_amount", e.target.value)} /></label></div>}
+        <div className="form-actions"><button className="primary" onClick={save}>Simpan</button><button onClick={reset}>Batal</button></div></section>}
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
-            gap: 14,
-            marginBottom: 20,
-          }}
-        >
-          {[
-            { label: "Total", value: tasks.length },
-            { label: "Belum Selesai", value: tasks.filter((t) => t.status === "pending").length },
-            { label: "Selesai", value: tasks.filter((t) => t.status === "done").length },
-            {
-              label: "Biaya Menunggu",
-              value: tasks.filter((t) => t.needs_cost && t.cost_status === "pending").length,
-            },
-          ].map((x) => (
-            <div
-              key={x.label}
-              style={{
-                background: "white",
-                border: "1px solid #eaecf0",
-                borderRadius: 14,
-                padding: 18,
-              }}
-            >
-              <div style={{ color: "#667085", fontSize: 13 }}>{x.label}</div>
-              <strong style={{ display: "block", fontSize: 26, marginTop: 8 }}>
-                {x.value}
-              </strong>
-            </div>
-          ))}
-        </div>
-
-        {showForm && (
-          <section
-            style={{
-              background: "white",
-              border: "1px solid #eaecf0",
-              borderRadius: 16,
-              padding: 20,
-              marginBottom: 20,
-            }}
-          >
-            <h2 style={{ marginTop: 0 }}>{editingId ? "Edit Tugas" : "Tambah Tugas Baru"}</h2>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-                gap: 14,
-              }}
-            >
-              <label>
-                Nama Karyawan
-                <input
-                  value={form.employee_name}
-                  onChange={(e) => change("employee_name", e.target.value)}
-                  placeholder="Nama karyawan"
-                />
-              </label>
-              <label>
-                Prioritas
-                <select
-                  value={form.priority}
-                  onChange={(e) => change("priority", e.target.value as Task["priority"])}
-                >
-                  <option value="normal">Normal</option>
-                  <option value="penting">Penting</option>
-                  <option value="mendesak">Mendesak</option>
-                </select>
-              </label>
-              <label>
-                Tanggal Tugas
-                <input
-                  type="date"
-                  value={form.task_date}
-                  onChange={(e) => change("task_date", e.target.value)}
-                />
-              </label>
-              <label>
-                Deadline
-                <input
-                  type="date"
-                  value={form.due_date}
-                  onChange={(e) => change("due_date", e.target.value)}
-                />
-              </label>
-              <label style={{ gridColumn: "1 / -1" }}>
-                Uraian Tugas
-                <textarea
-                  rows={3}
-                  value={form.task_description}
-                  onChange={(e) => change("task_description", e.target.value)}
-                  placeholder="Uraian pekerjaan"
-                />
-              </label>
-              <label style={{ gridColumn: "1 / -1" }}>
-                Catatan
-                <textarea
-                  rows={2}
-                  value={form.notes}
-                  onChange={(e) => change("notes", e.target.value)}
-                />
-              </label>
-            </div>
-
-            <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 16 }}>
-              <input
-                type="checkbox"
-                checked={form.needs_cost}
-                onChange={(e) => change("needs_cost", e.target.checked)}
-              />
-              Membutuhkan biaya
-            </label>
-
-            {form.needs_cost && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-                  gap: 14,
-                  marginTop: 12,
-                }}
-              >
-                <label>
-                  Keperluan Biaya
-                  <textarea
-                    rows={2}
-                    value={form.cost_description}
-                    onChange={(e) => change("cost_description", e.target.value)}
-                  />
-                </label>
-                <label>
-                  Nominal
-                  <input
-                    type="number"
-                    value={form.requested_amount}
-                    onChange={(e) => change("requested_amount", e.target.value)}
-                    placeholder="100000"
-                  />
-                </label>
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-              <button
-                onClick={save}
-                style={{
-                  background: "#0f766e",
-                  color: "white",
-                  border: 0,
-                  borderRadius: 9,
-                  padding: "10px 16px",
-                  fontWeight: 700,
-                }}
-              >
-                Simpan
-              </button>
-              <button
-                onClick={reset}
-                style={{
-                  border: "1px solid #d0d5dd",
-                  background: "white",
-                  borderRadius: 9,
-                  padding: "10px 16px",
-                }}
-              >
-                Batal
-              </button>
-            </div>
-          </section>
-        )}
-
-        <section
-          style={{
-            background: "white",
-            border: "1px solid #eaecf0",
-            borderRadius: 16,
-            padding: 20,
-          }}
-        >
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
-            <input
-              style={{ flex: 1, minWidth: 220 }}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari tugas atau karyawan..."
-            />
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as typeof filter)}
-            >
-              <option value="all">Semua</option>
-              <option value="pending">Belum Selesai</option>
-              <option value="done">Selesai</option>
-            </select>
-            <button
-              onClick={loadTasks}
-              style={{
-                border: "1px solid #d0d5dd",
-                background: "white",
-                borderRadius: 9,
-                padding: "8px 14px",
-              }}
-            >
-              Refresh
-            </button>
-          </div>
-
-          {loading ? (
-            <p>Memuat data...</p>
-          ) : visibleTasks.length === 0 ? (
-            <p style={{ color: "#667085" }}>Belum ada tugas.</p>
-          ) : (
-            <div style={{ display: "grid", gap: 12 }}>
-              {visibleTasks.map((task) => (
-                <article
-                  key={task.id}
-                  style={{
-                    border: "1px solid #eaecf0",
-                    borderRadius: 13,
-                    padding: 16,
-                    background: task.status === "done" ? "#f0fdf4" : "white",
-                  }}
-                >
-                  <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                    <input
-                      type="checkbox"
-                      checked={task.status === "done"}
-                      onChange={() => toggle(task)}
-                      style={{ width: 20, height: 20 }}
-                    />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <strong
-                        style={{
-                          textDecoration: task.status === "done" ? "line-through" : "none",
-                        }}
-                      >
-                        {task.task_description}
-                      </strong>
-                      <div style={{ color: "#667085", fontSize: 13, marginTop: 7 }}>
-                        Karyawan: {task.employee_name} · Tanggal: {task.task_date}
-                        {task.due_date ? ` · Deadline: ${task.due_date}` : ""}
-                      </div>
-                      <div
-                        style={{
-                          marginTop: 8,
-                          fontSize: 12,
-                          fontWeight: 700,
-                          color:
-                            task.priority === "mendesak"
-                              ? "#b42318"
-                              : task.priority === "penting"
-                              ? "#b54708"
-                              : "#667085",
-                        }}
-                      >
-                        {task.priority.toUpperCase()}
-                      </div>
-                      {task.notes && (
-                        <p style={{ margin: "8px 0 0", color: "#475467" }}>
-                          Catatan: {task.notes}
-                        </p>
-                      )}
-
-                      {task.needs_cost && (
-                        <div
-                          style={{
-                            marginTop: 10,
-                            padding: 12,
-                            borderRadius: 9,
-                            background: "#faf5ff",
-                            color: "#6b21a8",
-                          }}
-                        >
-                          <div>
-                            <strong>Pengajuan Biaya</strong>
-                          </div>
-                          <div style={{ marginTop: 5 }}>
-                            Keperluan: {task.cost_description || "-"}
-                          </div>
-                          <div>Nominal: {money(task.requested_amount)}</div>
-                          <div style={{ marginTop: 5, fontWeight: 700 }}>
-                            Status: {costStatusLabel(task.cost_status)}
-                          </div>
-                          {task.cost_notes && <div>Catatan: {task.cost_notes}</div>}
-
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 8,
-                              flexWrap: "wrap",
-                              marginTop: 10,
-                            }}
-                          >
-                            {task.cost_status === "pending" && (
-                              <>
-                                <button
-                                  onClick={() => updateCostStatus(task, "approved")}
-                                  style={{
-                                    background: "#16a34a",
-                                    color: "white",
-                                    border: 0,
-                                    borderRadius: 8,
-                                    padding: "8px 11px",
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  Setujui
-                                </button>
-                                <button
-                                  onClick={() => updateCostStatus(task, "rejected")}
-                                  style={{
-                                    background: "#dc2626",
-                                    color: "white",
-                                    border: 0,
-                                    borderRadius: 8,
-                                    padding: "8px 11px",
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  Tolak
-                                </button>
-                              </>
-                            )}
-                            {task.cost_status === "approved" && (
-                              <button
-                                onClick={() => updateCostStatus(task, "paid")}
-                                style={{
-                                  background: "#2563eb",
-                                  color: "white",
-                                  border: 0,
-                                  borderRadius: 8,
-                                  padding: "8px 11px",
-                                  fontWeight: 700,
-                                }}
-                              >
-                                Tandai Sudah Dibayar
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                      <button onClick={() => edit(task)}>Edit</button>
-                      {task.needs_cost && (
-                        <button onClick={() => whatsapp(task)}>WhatsApp</button>
-                      )}
-                      <button onClick={() => remove(task)} style={{ color: "#b42318" }}>
-                        Hapus
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
+        <section className="panel"><div className="toolbar"><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari tugas atau karyawan..." /><select value={filter} onChange={e => setFilter(e.target.value as typeof filter)}><option value="all">Semua</option><option value="pending">Belum Selesai</option><option value="done">Selesai</option></select><button onClick={loadTasks}>Refresh</button></div>
+          {loading ? <p>Memuat data...</p> : visibleTasks.length === 0 ? <p className="muted">Belum ada tugas.</p> : <div className="task-list">{visibleTasks.map(task => <article className={`task-card ${task.status === "done" ? "done" : ""}`} key={task.id}>
+            <div className="task-main"><input className="task-check" type="checkbox" checked={task.status === "done"} onChange={() => toggle(task)} /><div className="task-content"><strong className="task-title">{task.task_description}</strong><div className="meta">Karyawan: {task.employee_name} · Tanggal: {task.task_date}{task.due_date ? ` · Deadline: ${task.due_date}` : ""}</div><div className={`priority ${task.priority}`}>{task.priority.toUpperCase()}</div>{task.notes && <p className="notes">Catatan: {task.notes}</p>}{task.needs_cost && <div className={`cost-box ${task.cost_status}`}><b>Biaya</b><br />{task.cost_description || "-"}<br />{money(task.requested_amount)}<br /><span>Status: {costLabel(task.cost_status)}</span><div className="cost-actions">{task.cost_status === "pending" && <><button onClick={() => updateCostStatus(task, "approved")}>Setujui</button><button onClick={() => updateCostStatus(task, "rejected")}>Tolak</button></>}{task.cost_status === "approved" && <button onClick={() => updateCostStatus(task, "paid")}>Tandai Sudah Dibayar</button>}</div></div>}</div></div>
+            <div className="task-actions"><button onClick={() => edit(task)}>Edit</button>{task.needs_cost && <button onClick={() => whatsapp(task)}>WhatsApp</button>}<button className="danger" onClick={() => remove(task)}>Hapus</button></div>
+          </article>)}</div>}
         </section>
       </div>
-
       <style jsx>{`
-        label {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          font-size: 13px;
-          font-weight: 600;
-        }
-        input,
-        select,
-        textarea {
-          font: inherit;
-          font-weight: 400;
-          border: 1px solid #d0d5dd;
-          border-radius: 9px;
-          padding: 10px;
-          background: white;
-        }
-        button {
-          font: inherit;
-          border: 1px solid #d0d5dd;
-          background: white;
-          border-radius: 8px;
-          padding: 7px 10px;
-          cursor: pointer;
-        }
+        *{box-sizing:border-box}.page{min-height:100vh;background:#f5f7fb;padding:24px;font-family:Arial,sans-serif;color:#172033}.container{max-width:1100px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}.brand{color:#0f766e;font-weight:700;font-size:13px}.header h1{margin:8px 0 4px;font-size:30px}.header p{margin:0;color:#667085}.panel,.stats>div{background:#fff;border:1px solid #eaecf0;border-radius:16px}.panel{padding:20px;margin-bottom:20px}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}.stats>div{padding:18px}.stats span{display:block;color:#667085;font-size:13px}.stats strong{display:block;font-size:28px;margin-top:8px}.message{background:#fff7ed;border:1px solid #fed7aa;padding:12px;border-radius:10px;margin-bottom:16px}.primary{background:#0f766e!important;color:#fff;border:0!important;font-weight:700}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600}.full{grid-column:1/-1}input,select,textarea,button{font:inherit}input,select,textarea{border:1px solid #d0d5dd;border-radius:9px;padding:10px;background:#fff;font-weight:400}button{border:1px solid #d0d5dd;background:#fff;border-radius:9px;padding:9px 13px;cursor:pointer}.cost-check{flex-direction:row;align-items:center;margin-top:16px}.cost-check input{width:18px;height:18px}.cost-grid{margin-top:12px}.form-actions{display:flex;gap:10px;margin-top:18px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}.toolbar input{flex:1;min-width:180px}.task-list{display:grid;gap:12px}.task-card{border:1px solid #eaecf0;border-radius:13px;padding:16px;background:#fff}.task-card.done{background:#f0fdf4}.task-main{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;align-items:start}.task-check{width:20px;height:20px;margin-top:3px}.task-content{min-width:0}.task-title{display:block;font-size:18px;overflow-wrap:anywhere;text-decoration:none}.done .task-title{text-decoration:line-through}.meta,.notes{color:#667085;overflow-wrap:anywhere}.meta{font-size:13px;margin-top:8px}.priority{font-size:12px;font-weight:700;margin-top:9px}.priority.mendesak{color:#b42318}.priority.penting{color:#b54708}.priority.normal{color:#667085}.notes{margin:8px 0 0}.cost-box{margin-top:12px;padding:10px;border-radius:9px;background:#faf5ff;color:#6b21a8;overflow-wrap:anywhere}.cost-box.approved{background:#ecfdf3;color:#067647}.cost-box.rejected{background:#fef3f2;color:#b42318}.cost-box.paid{background:#eff8ff;color:#175cd3}.cost-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.task-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-left:40px}.danger{color:#b42318}.muted{color:#667085}@media(max-width:600px){.page{padding:16px}.panel{padding:14px}.header h1{font-size:28px}.task-title{font-size:17px}.task-actions{padding-left:40px}.toolbar select,.toolbar button{flex:1}.toolbar input{min-width:100%}}
       `}</style>
     </main>
   );

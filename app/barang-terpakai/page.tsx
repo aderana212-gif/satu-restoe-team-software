@@ -268,7 +268,7 @@ export default function BarangTerpakaiPage() {
             <div style={emptyStyle}>Belum ada barang tersisa yang dicatat.</div>
           ) : (
             <>
-              <div style={desktopTableStyle}>
+              <div className="barang-desktop" style={desktopTableStyle}>
                 <div style={{ overflowX: "auto" }}>
                   <table style={tableStyle}>
                     <thead>
@@ -288,7 +288,7 @@ export default function BarangTerpakaiPage() {
                   </table>
                 </div>
               </div>
-              <div style={mobileListStyle}>
+              <div className="barang-mobile" style={mobileListStyle}>
                 {items.map((item) => (
                   <div key={item.id} style={itemCardStyle}>
                     <div style={itemHeaderStyle}>
@@ -313,6 +313,7 @@ export default function BarangTerpakaiPage() {
           )}
         </section>
 
+        <style>{`@media (max-width: 700px) { .barang-desktop { display: none !important; } .barang-mobile { display: block !important; } }`}</style>
         <footer style={footerStyle}>Satu Restoe Team Software © 2026</footer>
       </div>
     </main>

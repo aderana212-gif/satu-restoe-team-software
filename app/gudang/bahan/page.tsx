@@ -158,7 +158,6 @@ function Stat({ label, value, warning = false }: { label: string; value: number;
 function DataTable({ title, children }: { title: string; children: React.ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canSwipe, setCanSwipe] = useState(false);
-  const [hasSwiped, setHasSwiped] = useState(false);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -166,7 +165,6 @@ function DataTable({ title, children }: { title: string; children: React.ReactNo
 
     const checkOverflow = () => {
       setCanSwipe(el.scrollWidth > el.clientWidth + 4);
-      if (el.scrollLeft > 4) setHasSwiped(true);
     };
 
     checkOverflow();
@@ -183,10 +181,10 @@ function DataTable({ title, children }: { title: string; children: React.ReactNo
     <div style={tableSectionStyle}>
       <div style={tableTitleRowStyle}>
         <h2 style={tableHeaderStyle}>{title}</h2>
-        {canSwipe && !hasSwiped && (
+        {canSwipe && (
           <div style={swipeHintStyle} aria-label="Geser tabel ke kiri untuk melihat informasi lainnya">
             <span style={swipeHandStyle}>☝️</span>
-            <span>Geser ke kiri</span>
+            <span>Geser tabel</span>
             <span style={swipeArrowStyle}>→</span>
             <span style={swipeHintTextStyle}>untuk melihat info lainnya</span>
           </div>
@@ -220,14 +218,14 @@ const cardStyle = { marginTop: "24px", border: "1px solid #e5e9ef", borderRadius
 const subTitleStyle = { color: "#287f78", marginTop: 0 };
 const tableSectionStyle = { marginTop: "24px" };
 const tableTitleRowStyle = { border: "1px solid #e5e9ef", borderBottom: 0, borderRadius: "16px 16px 0 0", background: "#f8fafc" };
-const swipeHintStyle = { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "9px 12px", borderTop: "1px solid #e5e9ef", color: "#287f78", fontSize: "13px", fontWeight: 700, background: "#f0fdfa" };
+const swipeHintStyle = { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "9px 12px", borderTop: "1px solid #e5e9ef", color: "#287f78", fontSize: "13px", fontWeight: 700, background: "#f0fdfa", position: "sticky" as const, left: 0 };
 const swipeHandStyle = { fontSize: "16px" };
 const swipeArrowStyle = { fontSize: "20px", lineHeight: 1 };
 const swipeHintTextStyle = { color: "#687386", fontWeight: 500 };
 const tableWrapperStyle = { border: "1px solid #e5e9ef", borderRadius: "0 0 16px 16px", overflow: "auto" as const };
 const tableHeaderStyle = { padding: "18px", background: "#f8fafc", fontWeight: 700, color: "#243047", margin: 0 };
 const emptyStateStyle = { padding: "36px 20px", textAlign: "center" as const, color: "#687386" };
-const tableStyle = { width: "100%", borderCollapse: "collapse" as const, minWidth: "620px" };
+const tableStyle = { width: "100%", borderCollapse: "collapse" as const, minWidth: "760px" };
 const thStyle = { textAlign: "left" as const, padding: "13px", borderBottom: "1px solid #e5e9ef", color: "#39465a", fontSize: "13px" };
 const tdStyle = { padding: "13px", borderBottom: "1px solid #edf0f3", color: "#4b5565", fontSize: "14px" };
 const errorStyle = { marginTop: "20px", padding: "14px", borderRadius: "10px", background: "#fee2e2", color: "#991b1b" };

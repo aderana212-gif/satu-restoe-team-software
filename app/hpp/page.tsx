@@ -16,6 +16,8 @@ type Menu = {
   nama_menu: string;
   porsi: number;
   harga_jual: number;
+  profit_mode: "percent" | "rupiah";
+  profit_value: number;
 };
 
 type RecipeLine = {
@@ -122,12 +124,12 @@ export default function HppPage() {
 
   const [menuName, setMenuName] = useState("");
   const [menuPortion, setMenuPortion] = useState("1");
-  const [menuSellingPrice, setMenuSellingPrice] = useState("");
 
   const [selectedMenuId, setSelectedMenuId] = useState<number | null>(null);
   const [selectedIngredientId, setSelectedIngredientId] = useState("");
   const [recipeQuantity, setRecipeQuantity] = useState("");
-  const [targetHppPercent, setTargetHppPercent] = useState("30");
+  const [profitMode, setProfitMode] = useState<"percent" | "rupiah">("percent");
+  const [profitValue, setProfitValue] = useState("30");
   const [editingRecipeId, setEditingRecipeId] = useState<number | null>(null);
   const [editingQuantity, setEditingQuantity] = useState("");
 
@@ -143,7 +145,7 @@ export default function HppPage() {
           .order("id", { ascending: true }),
         supabase
           .from("hpp_menu")
-          .select("id, nama_menu, porsi, harga_jual")
+          .select("id, nama_menu, porsi, harga_jual, profit_mode, profit_value")
           .order("id", { ascending: true }),
         supabase
           .from("hpp_resep_detail")
@@ -178,6 +180,8 @@ export default function HppPage() {
       nama_menu: item.nama_menu,
       porsi: Number(item.porsi),
       harga_jual: Number(item.harga_jual),
+      profit_mode: item.profit_mode === "rupiah" ? "rupiah" : "percent",
+      profit_value: Number(item.profit_value ?? 30),
     }));
     const loadedRecipeLines = (recipeLinesResponse.data || []).map((item) => ({
       id: Number(item.id),
@@ -199,6 +203,11 @@ export default function HppPage() {
     setSelectedIngredientId((current) =>
       current || (loadedIngredients[0] ? String(loadedIngredients[0].id) : "")
     );
+    const activeMenu = loadedMenus.find((menu) => menu.id === selectedMenuId) || loadedMenus[0];
+    if (activeMenu) {
+      setProfitMode(activeMenu.profit_mode);
+      setProfitValue(String(activeMenu.profit_value ?? 30));
+    }
     setLoading(false);
   }
 
@@ -233,8 +242,9 @@ export default function HppPage() {
   const marginPercent = selectedMenu?.harga_jual
     ? (marginRupiah / selectedMenu.harga_jual) * 100
     : 0;
-  const targetPercent = Math.min(Math.max(Number(targetHppPercent) || 30, 1), 100);
-  const recommendedSellingPrice = hppPerPorsi / (targetPercent / 100);
+  const parsedProfit = Math.max(Number(profitValue) || 0, 0);
+  const calculatedProfit = profitMode === "percent" ? hppPerPorsi * (parsedProfit / 100) : parsedProfit;
+  const calculatedSellingPrice = hppPerPorsi + calculatedProfit;
 
   function showSuccess(message: string) {
     setSuccessMessage(message);
@@ -272,14 +282,13 @@ export default function HppPage() {
   }
 
   async function addMenu() {
-    if (!menuName.trim() || !menuSellingPrice) {
-      alert("Nama menu dan harga jual wajib diisi.");
+    if (!menuName.trim()) {
+      alert("Nama menu wajib diisi.");
       return;
     }
     const portion = Number(menuPortion);
-    const sellingPrice = Number(menuSellingPrice);
-    if (!Number.isFinite(portion) || portion <= 0 || !Number.isFinite(sellingPrice) || sellingPrice <= 0) {
-      alert("Porsi dan harga jual harus lebih dari 0.");
+    if (!Number.isFinite(portion) || portion <= 0) {
+      alert("Jumlah porsi harus lebih dari 0.");
       return;
     }
 
@@ -287,8 +296,8 @@ export default function HppPage() {
     setErrorMessage("");
     const { data, error } = await supabase
       .from("hpp_menu")
-      .insert({ nama_menu: menuName.trim(), porsi: portion, harga_jual: sellingPrice })
-      .select("id, nama_menu, porsi, harga_jual")
+      .insert({ nama_menu: menuName.trim(), porsi: portion, harga_jual: 0, profit_mode: "percent", profit_value: 30 })
+      .select("id, nama_menu, porsi, harga_jual, profit_mode, profit_value")
       .single();
     if (error) {
       setErrorMessage(`Gagal menyimpan menu: ${error.message}`);
@@ -297,7 +306,6 @@ export default function HppPage() {
     }
     setMenuName("");
     setMenuPortion("1");
-    setMenuSellingPrice("");
     await loadData();
     if (data?.id) setSelectedMenuId(Number(data.id));
     showSuccess("Menu berhasil disimpan.");
@@ -369,6 +377,32 @@ export default function HppPage() {
     setSaving(false);
   }
 
+  async function saveSellingPrice() {
+    if (!selectedMenuId) {
+      alert("Pilih menu terlebih dahulu.");
+      return;
+    }
+    if (selectedMenuLines.length === 0 || hppPerPorsi <= 0) {
+      alert("Tambahkan resep bahan terlebih dahulu agar HPP bisa dihitung.");
+      return;
+    }
+    setSaving(true);
+    setErrorMessage("");
+    const { error } = await supabase.from("hpp_menu").update({
+      harga_jual: calculatedSellingPrice,
+      profit_mode: profitMode,
+      profit_value: parsedProfit,
+    }).eq("id", selectedMenuId);
+    if (error) {
+      setErrorMessage("Gagal menyimpan harga jual: " + error.message);
+      setSaving(false);
+      return;
+    }
+    await loadData();
+    showSuccess("Harga jual berhasil disimpan.");
+    setSaving(false);
+  }
+
   async function deleteIngredient(id: number) {
     if (!confirm("Hapus bahan ini? Jika sudah dipakai dalam resep, penghapusan bisa gagal.")) return;
     setSaving(true);
@@ -432,7 +466,7 @@ export default function HppPage() {
         <header style={{ ...cardStyle, marginBottom: "20px" }}>
           <h1 style={{ margin: 0, color: "#0f766e", fontSize: "28px" }}>HPP & Harga Jual</h1>
           <p style={{ color: "#667085", marginBottom: 0 }}>
-            Alur: Bahan → Menu → Resep → Perhitungan HPP dan harga jual otomatis.
+            Alur: Bahan → Menu → Resep → HPP → Keuntungan → Harga jual otomatis.
           </p>
           {loading && <p style={{ color: "#667085" }}>Memuat data dari Supabase...</p>}
           {saving && <p style={{ color: "#0f766e", fontWeight: 700 }}>Menyimpan data...</p>}
@@ -479,7 +513,6 @@ export default function HppPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
             <input value={menuName} onChange={(e) => setMenuName(e.target.value)} placeholder="Nama menu" style={inputStyle} />
             <input type="number" min="1" step="0.01" value={menuPortion} onChange={(e) => setMenuPortion(e.target.value)} placeholder="Jumlah porsi" style={inputStyle} />
-            <input type="number" min="0" value={menuSellingPrice} onChange={(e) => setMenuSellingPrice(e.target.value)} placeholder="Harga jual per porsi" style={inputStyle} />
           </div>
           <button onClick={addMenu} disabled={saving} style={buttonStyle}>Simpan Menu</button>
 
@@ -562,17 +595,23 @@ export default function HppPage() {
             </div>
 
             <div style={{ borderTop: "1px solid #eaecf0", marginTop: "24px", paddingTop: "22px" }}>
-              <h3 style={{ margin: "0 0 8px", color: "#0f766e", fontSize: "20px" }}>Harga Jual Berdasarkan Target HPP</h3>
-              <p style={{ color: "#667085", marginTop: 0 }}>Masukkan target HPP sebagai persentase dari harga jual.</p>
-              <div style={{ maxWidth: "260px" }}>
-                <input type="number" min="1" max="100" value={targetHppPercent} onChange={(e) => setTargetHppPercent(e.target.value)} style={inputStyle} />
-                <strong>% target HPP</strong>
+              <h3 style={{ margin: "0 0 8px", color: "#0f766e", fontSize: "20px" }}>Keuntungan & Harga Jual</h3>
+              <p style={{ color: "#667085", marginTop: 0 }}>Tentukan keuntungan sebagai persentase dari HPP atau nilai Rupiah. Harga jual dihitung otomatis.</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+                <select value={profitMode} onChange={(e) => setProfitMode(e.target.value as "percent" | "rupiah")} style={inputStyle}>
+                  <option value="percent">Keuntungan (%) dari HPP</option>
+                  <option value="rupiah">Keuntungan (Rp)</option>
+                </select>
+                <input type="number" min="0" step="0.01" value={profitValue} onChange={(e) => setProfitValue(e.target.value)} placeholder={profitMode === "percent" ? "Contoh: 30" : "Contoh: 5000"} style={inputStyle} />
               </div>
-              <div style={{ background: "#ecfdf3", borderRadius: "14px", padding: "18px", marginTop: "14px" }}>
-                <div style={{ color: "#166534" }}>Harga jual rekomendasi</div>
-                <strong style={{ fontSize: "28px", color: "#166534" }}>{formatRupiah(recommendedSellingPrice)}</strong>
-                <div style={{ color: "#667085", marginTop: "8px" }}>Rumus: HPP per porsi ÷ target HPP %</div>
+              <div style={{ background: "#ecfdf3", borderRadius: "14px", padding: "18px", marginTop: "4px" }}>
+                <div style={{ color: "#166534" }}>Keuntungan</div>
+                <strong style={{ fontSize: "22px", color: "#166534" }}>{formatRupiah(calculatedProfit)}</strong>
+                <div style={{ color: "#166534", marginTop: "10px" }}>Harga jual otomatis</div>
+                <strong style={{ fontSize: "30px", color: "#166534" }}>{formatRupiah(calculatedSellingPrice)}</strong>
+                <div style={{ color: "#667085", marginTop: "8px" }}>HPP per porsi: {formatRupiah(hppPerPorsi)}</div>
               </div>
+              <button onClick={saveSellingPrice} disabled={saving || hppPerPorsi <= 0} style={{ ...buttonStyle, marginTop: "14px" }}>Simpan Harga Jual</button>
             </div>
           </>}
         </section>

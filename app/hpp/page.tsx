@@ -651,7 +651,7 @@ export default function HppPage() {
               <button onClick={saveSellingPrice} disabled={saving || hppPerPorsi <= 0} style={{ ...buttonStyle, marginTop: "14px" }}>
                 Simpan Harga Jual
               </button>
-            </div>            </div>
+            </div>
           </>}
         </section>
 

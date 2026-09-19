@@ -487,8 +487,6 @@ export default function HppPage() {
             <input type="number" min="0" value={ingredientPrice} onChange={(e) => setIngredientPrice(e.target.value)} placeholder="Harga beli per satuan" style={inputStyle} />
           </div>
           <button onClick={addIngredient} disabled={saving} style={buttonStyle}>Simpan Bahan</button>
-
-          <div style={{ color: "#667085", fontSize: "14px", marginTop: "14px", marginBottom: "8px", fontWeight: 600 }}>☝️ Geser tabel → untuk melihat info lainnya</div>
           <div style={{ color: "#667085", fontSize: "14px", marginTop: "14px", marginBottom: "8px", fontWeight: 600 }}>☝️ Geser tabel → untuk melihat info lainnya</div>
           <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
             <table style={tableStyle}>
@@ -514,7 +512,6 @@ export default function HppPage() {
             <input type="number" min="1" step="0.01" value={menuPortion} onChange={(e) => setMenuPortion(e.target.value)} placeholder="Jumlah porsi" style={inputStyle} />
           </div>
           <button onClick={addMenu} disabled={saving} style={buttonStyle}>Simpan Menu</button>
-
           <div style={{ color: "#667085", fontSize: "14px", marginTop: "14px", marginBottom: "8px", fontWeight: 600 }}>☝️ Geser tabel → untuk melihat info lainnya</div>
           <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
             <table style={tableStyle}>
@@ -550,8 +547,7 @@ export default function HppPage() {
               <input type="number" min="0" step="0.001" value={recipeQuantity} onChange={(e) => setRecipeQuantity(e.target.value)} placeholder="Jumlah bahan" style={inputStyle} />
             </div>
             <button onClick={addRecipeLine} disabled={saving || ingredients.length === 0} style={buttonStyle}>Tambah ke Resep</button>
-
-            <div style={{ color: "#667085", fontSize: "14px", marginTop: "14px", marginBottom: "8px", fontWeight: 600 }}>☝️ Geser tabel → untuk melihat info lainnya</div>
+          <div style={{ color: "#667085", fontSize: "14px", marginTop: "14px", marginBottom: "8px", fontWeight: 600 }}>☝️ Geser tabel → untuk melihat info lainnya</div>
           <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
               <table style={tableStyle}>
                 <thead><tr><th style={cellStyle}>Bahan</th><th style={cellStyle}>Jumlah</th><th style={cellStyle}>Biaya</th><th style={cellStyle}>Aksi</th></tr></thead>

@@ -396,37 +396,24 @@ export default function BanquetPage() {
             {!loading && filteredOrders.length === 0 && <div style={styles.empty}>Belum ada pesanan yang sesuai.</div>}
             {filteredOrders.map((order) => (
               <div key={order.id} style={styles.orderRow}>
-                <div style={styles.orderTop}>
-                  <div style={styles.bookingHeader}>
+                <div style={styles.orderMain}>
+                  <div style={styles.orderTop}>
                     <div>
                       <div style={styles.date}>{formatTanggal(order.tanggal)}</div>
-                      <div style={styles.bookingId}>Booking ID: {order.id}</div>
+                      <strong style={styles.orderName}>{order.namaAcara}</strong>
+                      <div style={styles.muted}>{order.namaPemesan} · {order.kontak || "Kontak belum diisi"}</div>
+                      <div style={styles.muted}>{order.jumlahTamu} tamu · {order.venue} · Ready {order.jamReady}</div>
                     </div>
-                    <span style={statusStyle(order.status)}>{order.status}</span>
-                  </div>
-                  <div style={styles.bookingHero}>
-                    <div>
-                      <strong style={styles.orderName}>{order.namaPemesan}</strong>
-                      <div style={styles.muted}>{order.kontak || "Kontak belum diisi"}</div>
+                    <div style={styles.orderSummary}>
+                      <span style={statusStyle(order.status)}>{order.status}</span>
+                      <strong>{formatRupiah(order.jumlahTamu * order.hargaPerOrang)}</strong>
                     </div>
-                    <strong style={styles.orderAmount}>{formatRupiah(order.jumlahTamu * order.hargaPerOrang)}</strong>
-                  </div>
-                  <div style={styles.bookingDivider} />
-                  <div style={styles.bookingDetails}>
-                    <div><span style={styles.muted}>Jumlah Tamu</span><strong>{order.jumlahTamu} tamu</strong></div>
-                    <div><span style={styles.muted}>Lokasi / Area</span><strong>{order.venue}</strong></div>
-                    <div><span style={styles.muted}>Waktu Ready</span><strong>{order.jamReady}</strong></div>
-                  </div>
-                  <div style={styles.bookingDivider} />
-                  <div style={styles.bookingNote}>
-                    <span style={styles.muted}>Catatan</span>
-                    <strong>{order.catatan || "-"}</strong>
                   </div>
                   <div style={styles.rowActions}>
-                    <button onClick={() => setSelectedOrder(order)} style={styles.detailButton}>▣<span>Detail</span></button>
-                    <button onClick={() => mulaiEdit(order)} style={styles.secondaryButton}>✎<span>Ubah</span></button>
-                    <button onClick={() => hapusPesanan(order.id)} style={styles.deleteButton}>▣<span>Hapus</span></button>
-                    <button onClick={() => kirimWhatsAppCustomer(order)} style={styles.customerButton}>◉<span>WA Customer</span></button>
+                    <button onClick={() => setSelectedOrder(order)} style={styles.detailButton}>Detail</button>
+                    <button onClick={() => mulaiEdit(order)} style={styles.secondaryButton}>Ubah</button>
+                    <button onClick={() => hapusPesanan(order.id)} style={styles.deleteButton}>Hapus</button>
+                    <button onClick={() => kirimWhatsAppCustomer(order)} style={styles.customerButton}>WA Customer</button>
                   </div>
                 </div>
               </div>
@@ -542,20 +529,14 @@ const styles: Record<string, React.CSSProperties> = {
   orderList: { display: "flex", flexDirection: "column", gap: 10 },
   orderRow: { border: "1px solid #e2e8f0", borderRadius: 16, padding: 15, display: "flex", justifyContent: "space-between", gap: 15, flexWrap: "wrap" },
   orderMain: { minWidth: 0, flex: 1 },
-  orderTop: { display: "block" },
-  bookingHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 },
-  bookingId: { color: "#94a3b8", fontSize: 12, marginTop: 4, fontWeight: 700 },
-  bookingHero: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 18, marginTop: 18 },
-  orderAmount: { fontSize: 24, color: "#173b3b", whiteSpace: "nowrap" },
-  bookingDivider: { height: 1, background: "#e2e8f0", margin: "18px 0" },
-  bookingDetails: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14 },
-  bookingNote: { display: "flex", flexDirection: "column", gap: 5 },
+  orderTop: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 18, flexWrap: "wrap" },
+  orderSummary: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, minWidth: 150 },
   orderSide: { display: "none" },
   date: { color: "#0f766e", fontSize: 12, fontWeight: 800 },
   orderName: { display: "block", fontSize: 18, marginTop: 3 },
   muted: { color: "#64748b", fontSize: 13, lineHeight: 1.5 },
   status: { borderRadius: 999, padding: "5px 10px", fontSize: 12, fontWeight: 800 },
-  rowActions: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginTop: 18, paddingTop: 16, borderTop: "1px solid #e2e8f0" },
+  rowActions: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginTop: 18, paddingTop: 14, borderTop: "1px solid #e2e8f0" },
   detailButton: { border: 0, borderRadius: 9, padding: "8px 11px", background: "#dbeafe", color: "#1d4ed8", fontWeight: 800, cursor: "pointer" },
   deleteButton: { border: 0, borderRadius: 9, padding: "8px 11px", background: "#fee2e2", color: "#991b1b", fontWeight: 800, cursor: "pointer" },
   empty: { border: "1px dashed #cbd5d5", borderRadius: 14, padding: 25, textAlign: "center", color: "#64748b" },

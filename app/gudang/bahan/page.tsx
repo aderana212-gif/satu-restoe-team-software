@@ -8,8 +8,10 @@ type Bahan = {
   nama: string;
   kategori: string;
   satuan: string;
+  stok_awal: number;
   stok_saat_ini: number;
   stok_minimum: number;
+  harga_beli: number;
 };
 
 type Transaksi = {
@@ -30,7 +32,9 @@ export default function BahanPage() {
   const [satuan, setSatuan] = useState("Kg");
   const [stokAwal, setStokAwal] = useState("");
   const [minimum, setMinimum] = useState("");
+  const [hargaBeli, setHargaBeli] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [trxKeterangan, setTrxKeterangan] = useState("");
   const [jenis, setJenis] = useState<"masuk" | "keluar">("masuk");
   const [jumlah, setJumlah] = useState("");
   const [loading, setLoading] = useState(true);
@@ -41,7 +45,7 @@ export default function BahanPage() {
     setLoading(true);
     setError("");
     const [{ data: bahanData, error: bahanError }, { data: trxData, error: trxError }] = await Promise.all([
-      supabase.from("gudang_bahan").select("id,nama,kategori,satuan,stok_saat_ini,stok_minimum").eq("aktif", true).order("nama"),
+      supabase.from("gudang_bahan").select("id,nama,kategori,satuan,stok_awal,stok_saat_ini,stok_minimum,harga_beli").eq("aktif", true).order("nama"),
       supabase.from("gudang_bahan_transaksi").select("id,tanggal,jenis,jumlah,bahan_id,gudang_bahan(nama,satuan)").order("tanggal", { ascending: false }).limit(100),
     ]);
 
@@ -83,7 +87,7 @@ export default function BahanPage() {
     });
     setSaving(false);
     if (insertError) { alert(insertError.message); return; }
-    setNama(""); setStokAwal(""); setMinimum(""); setShowForm(false);
+    setNama(""); setStokAwal(""); setMinimum(""); setHargaBeli(""); setShowForm(false);
     await loadData();
   }
 
@@ -95,11 +99,12 @@ export default function BahanPage() {
 
     setSaving(true);
     const { error: insertError } = await supabase.from("gudang_bahan_transaksi").insert({
-      bahan_id: item.id, jenis, jumlah: qty, keterangan: "Input melalui Gudang & Inventaris",
+      bahan_id: item.id, jenis, jumlah: qty, keterangan: trxKeterangan.trim() || "Input melalui Gudang & Inventaris",
     });
     setSaving(false);
     if (insertError) { alert(insertError.message); return; }
     setJumlah("");
+    setTrxKeterangan("");
     await loadData();
   }
 
@@ -122,6 +127,7 @@ export default function BahanPage() {
               <Field label="Satuan"><select value={satuan} onChange={(e) => setSatuan(e.target.value)} style={inputStyle}><option>Kg</option><option>Liter</option><option>Gram</option><option>Pcs</option><option>Botol</option><option>Dus</option></select></Field>
               <Field label="Stok awal *"><input type="number" min="0" value={stokAwal} onChange={(e) => setStokAwal(e.target.value)} style={inputStyle} /></Field>
               <Field label="Stok minimum"><input type="number" min="0" value={minimum} onChange={(e) => setMinimum(e.target.value)} style={inputStyle} /></Field>
+              <Field label="Harga beli terakhir"><input type="number" min="0" value={hargaBeli} onChange={(e) => setHargaBeli(e.target.value)} placeholder="Opsional" style={inputStyle} /></Field>
             </div>
             <button disabled={saving} onClick={tambahBahan} style={primaryButtonStyle}>{saving ? "Menyimpan..." : "Simpan Bahan"}</button>
           </div>}
@@ -134,11 +140,12 @@ export default function BahanPage() {
               <Field label="Pilih bahan"><select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} style={inputStyle}><option value="">Pilih bahan</option>{bahan.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}</select></Field>
               <Field label="Jenis"><select value={jenis} onChange={(e) => setJenis(e.target.value as "masuk" | "keluar")} style={inputStyle}><option value="masuk">Masuk</option><option value="keluar">Keluar</option></select></Field>
               <Field label="Jumlah"><input type="number" min="0" value={jumlah} onChange={(e) => setJumlah(e.target.value)} style={inputStyle} /></Field>
+              <Field label="Keterangan"><input value={trxKeterangan} onChange={(e) => setTrxKeterangan(e.target.value)} placeholder="Contoh: Belanja supplier" style={inputStyle} /></Field>
             </div>
             <button disabled={saving || loading} onClick={simpanTransaksi} style={primaryButtonStyle}>{saving ? "Menyimpan..." : "Simpan Transaksi"}</button>
           </div>
 
-          <DataTable title="Stok Saat Ini">{loading ? <div style={emptyStateStyle}>Memuat data...</div> : bahan.length === 0 ? <div style={emptyStateStyle}>Belum ada bahan. Tambahkan bahan pertama.</div> : <table style={tableStyle}><thead><tr><th style={thStyle}>No</th><th style={thStyle}>Nama Bahan</th><th style={thStyle}>Kategori</th><th style={thStyle}>Stok</th><th style={thStyle}>Minimum</th></tr></thead><tbody>{bahan.map((item, index) => <tr key={item.id}><td style={tdStyle}>{index + 1}</td><td style={tdStyle}>{item.nama}</td><td style={tdStyle}>{item.kategori || "-"}</td><td style={tdStyle}>{Number(item.stok_saat_ini)} {item.satuan}</td><td style={tdStyle}>{Number(item.stok_minimum)} {item.satuan}</td></tr>)}</tbody></table>}</DataTable>
+          <DataTable title="Stok Saat Ini"><div style={mobileCardsStyle}>{bahan.map((item) => <div key={"card-"+item.id} style={mobileCardStyle}><div style={cardTopStyle}><strong>{item.nama}</strong><span style={item.stok_saat_ini <= item.stok_minimum ? lowBadgeStyle : goodBadgeStyle}>{Number(item.stok_saat_ini)} {item.satuan}</span></div><div style={mutedStyle}>{item.kategori || "Tanpa kategori"} · Minimum {Number(item.stok_minimum)} {item.satuan}</div><div style={cardMetaStyle}>Harga beli terakhir: {item.harga_beli > 0 ? formatRupiah(item.harga_beli) : "-"}</div></div>)}</div>{loading ? <div style={emptyStateStyle}>Memuat data...</div> : bahan.length === 0 ? <div style={emptyStateStyle}>Belum ada bahan. Tambahkan bahan pertama.</div> : <table style={tableStyle}><thead><tr><th style={thStyle}>No</th><th style={thStyle}>Nama Bahan</th><th style={thStyle}>Kategori</th><th style={thStyle}>Stok</th><th style={thStyle}>Minimum</th></tr></thead><tbody>{bahan.map((item, index) => <tr key={item.id}><td style={tdStyle}>{index + 1}</td><td style={tdStyle}>{item.nama}</td><td style={tdStyle}>{item.kategori || "-"}</td><td style={tdStyle}>{Number(item.stok_saat_ini)} {item.satuan}</td><td style={tdStyle}>{Number(item.stok_minimum)} {item.satuan}</td></tr>)}</tbody></table>}</DataTable>
           <DataTable title="Riwayat Transaksi">{transaksi.length === 0 ? <div style={emptyStateStyle}>Belum ada transaksi.</div> : <table style={tableStyle}><thead><tr><th style={thStyle}>Tanggal</th><th style={thStyle}>Bahan</th><th style={thStyle}>Jenis</th><th style={thStyle}>Jumlah</th></tr></thead><tbody>{transaksi.map((item) => <tr key={item.id}><td style={tdStyle}>{item.tanggal}</td><td style={tdStyle}>{item.nama}</td><td style={tdStyle}>{item.jenis === "masuk" ? "Masuk" : "Keluar"}</td><td style={tdStyle}>{item.jumlah} {item.satuan}</td></tr>)}</tbody></table>}</DataTable>
         </section>
       </div>
@@ -178,3 +185,11 @@ const tableStyle = { width: "100%", borderCollapse: "collapse" as const, minWidt
 const thStyle = { textAlign: "left" as const, padding: "13px", borderBottom: "1px solid #e5e9ef", color: "#39465a", fontSize: "13px" };
 const tdStyle = { padding: "13px", borderBottom: "1px solid #edf0f3", color: "#4b5565", fontSize: "14px" };
 const errorStyle = { marginTop: "20px", padding: "14px", borderRadius: "10px", background: "#fee2e2", color: "#991b1b" };
+const mobileCardsStyle = { display: "none" };
+const mobileCardStyle = { border: "1px solid #e5e9ef", borderRadius: 14, padding: 15, margin: 12 };
+const cardTopStyle = { display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" };
+const goodBadgeStyle = { background: "#dcfce7", color: "#166534", borderRadius: 999, padding: "6px 9px", fontWeight: 800, whiteSpace: "nowrap" as const };
+const lowBadgeStyle = { background: "#fef3c7", color: "#92400e", borderRadius: 999, padding: "6px 9px", fontWeight: 800, whiteSpace: "nowrap" as const };
+const mutedStyle = { color: "#687386", marginTop: 8, fontSize: 13 };
+const cardMetaStyle = { color: "#39465a", marginTop: 8, fontSize: 13 };
+function formatRupiah(value: number) { return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value); }

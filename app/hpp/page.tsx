@@ -565,6 +565,7 @@ export default function HppPage() {
             })()}
             <button onClick={addRecipeLine} disabled={saving || ingredients.length === 0} style={buttonStyle}>Tambah ke Resep</button>
 
+            <div style={{ color: "#667085", fontSize: "14px", marginTop: "14px", marginBottom: "8px", fontWeight: 600 }}>☝️ Geser tabel → untuk melihat info lainnya</div>
             <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
               <table style={tableStyle}>
                 <thead><tr><th style={cellStyle}>Bahan</th><th style={cellStyle}>Pemakaian</th><th style={cellStyle}>Harga Satuan</th><th style={cellStyle}>Biaya</th><th style={cellStyle}>Aksi</th></tr></thead>

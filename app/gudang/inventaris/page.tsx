@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 
 type Aset = {
@@ -279,8 +279,19 @@ export default function InventarisPage() {
             <strong style={statValueStyle}>{aset.length}</strong>
           </div>
 
-          <div style={tableWrapperStyle}>
-            <h2 style={tableHeaderStyle}>Daftar Inventaris</h2>
+          <div style={tableSectionStyle}>
+            <div style={tableTitleRowStyle}>
+              <h2 style={tableHeaderStyle}>Daftar Inventaris</h2>
+              {!loading && aset.length > 0 && (
+                <div style={swipeHintStyle}>
+                  <span style={swipeHandStyle}>☝️</span>
+                  <span>Geser tabel</span>
+                  <span style={swipeArrowStyle}>→</span>
+                  <span style={swipeHintTextStyle}>untuk melihat info lainnya</span>
+                </div>
+              )}
+            </div>
+            <div style={tableWrapperStyle}>
             {loading ? (
               <div style={emptyStateStyle}>Memuat data...</div>
             ) : aset.length === 0 ? (
@@ -325,6 +336,7 @@ export default function InventarisPage() {
                 </tbody>
               </table>
             )}
+            </div>
           </div>
         </section>
       </div>
@@ -377,7 +389,13 @@ const inputStyle = { width: "100%", boxSizing: "border-box" as const, border: "1
 const statStyle = { border: "1px solid #e5e9ef", borderRadius: "14px", padding: "18px", marginTop: "24px" };
 const statLabelStyle = { color: "#687386", fontSize: "14px" };
 const statValueStyle = { display: "block", color: "#287f78", fontSize: "28px", marginTop: "8px" };
-const tableWrapperStyle = { marginTop: "24px", border: "1px solid #e5e9ef", borderRadius: "16px", overflow: "auto" as const };
+const tableSectionStyle = { marginTop: "24px" };
+const tableTitleRowStyle = { border: "1px solid #e5e9ef", borderBottom: 0, borderRadius: "16px 16px 0 0", background: "#f8fafc" };
+const swipeHintStyle = { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "9px 12px", borderTop: "1px solid #e5e9ef", color: "#287f78", fontSize: "13px", fontWeight: 700, background: "#f0fdfa" };
+const swipeHandStyle = { fontSize: "16px" };
+const swipeArrowStyle = { fontSize: "20px", lineHeight: 1 };
+const swipeHintTextStyle = { color: "#687386", fontWeight: 500 };
+const tableWrapperStyle = { border: "1px solid #e5e9ef", borderRadius: "0 0 16px 16px", overflow: "auto" as const };
 const tableHeaderStyle = { padding: "18px", background: "#f8fafc", fontWeight: 700, color: "#243047", margin: 0 };
 const emptyStateStyle = { padding: "36px 20px", textAlign: "center" as const, color: "#687386" };
 const tableStyle = { width: "100%", borderCollapse: "collapse" as const, minWidth: "900px" };

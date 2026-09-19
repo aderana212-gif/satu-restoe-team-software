@@ -33,6 +33,7 @@ export default function BarangTerpakaiPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const loadItems = async () => {
@@ -62,6 +63,21 @@ export default function BarangTerpakaiPage() {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
+  const mulaiEdit = (item: LeftoverItem) => {
+    setEditingId(item.id);
+    setForm({
+      tanggal_event: item.tanggal_event,
+      nama_event: item.nama_event,
+      nama_barang: item.nama_barang,
+      kategori: item.kategori,
+      jumlah: String(item.jumlah),
+      satuan: item.satuan,
+      kondisi: item.kondisi,
+      catatan: item.catatan || "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const tambahBarang = async () => {
     if (
       !form.tanggal_event ||
@@ -77,23 +93,26 @@ export default function BarangTerpakaiPage() {
     setSaving(true);
     setError("");
 
-    const { error: insertError } = await supabase
-      .from("barang_tersisa_event")
-      .insert({
-        tanggal_event: form.tanggal_event,
-        nama_event: form.nama_event.trim(),
-        nama_barang: form.nama_barang.trim(),
-        kategori: form.kategori,
-        jumlah: Number(form.jumlah),
-        satuan: form.satuan,
-        kondisi: form.kondisi,
-        catatan: form.catatan.trim(),
-      });
+    const payload = {
+      tanggal_event: form.tanggal_event,
+      nama_event: form.nama_event.trim(),
+      nama_barang: form.nama_barang.trim(),
+      kategori: form.kategori,
+      jumlah: Number(form.jumlah),
+      satuan: form.satuan,
+      kondisi: form.kondisi,
+      catatan: form.catatan.trim(),
+    };
 
-    if (insertError) {
-      setError(`Gagal menyimpan data: ${insertError.message}`);
+    const result = editingId
+      ? await supabase.from("barang_tersisa_event").update(payload).eq("id", editingId)
+      : await supabase.from("barang_tersisa_event").insert(payload);
+
+    if (result.error) {
+      setError(`Gagal menyimpan data: ${result.error.message}`);
     } else {
       setForm(initialForm);
+      setEditingId(null);
       await loadItems();
     }
     setSaving(false);
@@ -157,7 +176,7 @@ export default function BarangTerpakaiPage() {
     }
 
     const encodedMessage = encodeURIComponent(laporanText(data));
-    window.location.href = `whatsapp://send?text=${encodedMessage}`;
+    window.open(`https://wa.me/?text=${encodedMessage}`, "_blank", "noopener,noreferrer");
   };
 
   const toggleSelected = (id: string) => {
@@ -228,8 +247,9 @@ export default function BarangTerpakaiPage() {
             </Field>
           </div>
           <button onClick={tambahBarang} disabled={saving} style={buttonStyle}>
-            {saving ? "Menyimpan..." : "+ Simpan Barang Tersisa"}
+            {saving ? "Menyimpan..." : editingId ? "Simpan Perubahan" : "+ Simpan Barang Tersisa"}
           </button>
+          {editingId && <button onClick={() => { setEditingId(null); setForm(initialForm); }} style={cancelButtonStyle}>Batal Ubah</button>}
         </section>
 
         <section style={cardStyle}>
@@ -247,38 +267,49 @@ export default function BarangTerpakaiPage() {
           ) : items.length === 0 ? (
             <div style={emptyStyle}>Belum ada barang tersisa yang dicatat.</div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={tableStyle}>
-                <thead>
-                  <tr style={{ background: "#f0fdfa" }}>
-                    <th style={thStyle}>Pilih</th>
-                    <th style={thStyle}>Tanggal</th>
-                    <th style={thStyle}>Event</th>
-                    <th style={thStyle}>Barang</th>
-                    <th style={thStyle}>Kategori</th>
-                    <th style={thStyle}>Jumlah</th>
-                    <th style={thStyle}>Kondisi</th>
-                    <th style={thStyle}>Catatan</th>
-                    <th style={thStyle}>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id}>
-                      <td style={tdStyle}><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => toggleSelected(item.id)} /></td>
-                      <td style={tdStyle}>{item.tanggal_event}</td>
-                      <td style={tdStyle}>{item.nama_event}</td>
-                      <td style={tdStyle}>{item.nama_barang}</td>
-                      <td style={tdStyle}>{item.kategori}</td>
-                      <td style={tdStyle}>{item.jumlah} {item.satuan}</td>
-                      <td style={tdStyle}>{item.kondisi}</td>
-                      <td style={tdStyle}>{item.catatan || "-"}</td>
-                      <td style={tdStyle}><button onClick={() => hapusBarang(item.id)} style={deleteButtonStyle}>Hapus</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div style={desktopTableStyle}>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={tableStyle}>
+                    <thead>
+                      <tr style={{ background: "#f0fdfa" }}>
+                        <th style={thStyle}>Pilih</th><th style={thStyle}>Tanggal</th><th style={thStyle}>Event</th><th style={thStyle}>Barang</th><th style={thStyle}>Kategori</th><th style={thStyle}>Jumlah</th><th style={thStyle}>Kondisi</th><th style={thStyle}>Catatan</th><th style={thStyle}>Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item) => (
+                        <tr key={item.id}>
+                          <td style={tdStyle}><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => toggleSelected(item.id)} /></td>
+                          <td style={tdStyle}>{item.tanggal_event}</td><td style={tdStyle}>{item.nama_event}</td><td style={tdStyle}>{item.nama_barang}</td><td style={tdStyle}>{item.kategori}</td><td style={tdStyle}>{item.jumlah} {item.satuan}</td><td style={tdStyle}>{item.kondisi}</td><td style={tdStyle}>{item.catatan || "-"}</td>
+                          <td style={tdStyle}><button onClick={() => mulaiEdit(item)} style={editButtonStyle}>Ubah</button> <button onClick={() => hapusBarang(item.id)} style={deleteButtonStyle}>Hapus</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div style={mobileListStyle}>
+                {items.map((item) => (
+                  <div key={item.id} style={itemCardStyle}>
+                    <div style={itemHeaderStyle}>
+                      <div><div style={itemDateStyle}>{item.tanggal_event}</div><strong style={itemNameStyle}>{item.nama_barang}</strong></div>
+                      <input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => toggleSelected(item.id)} />
+                    </div>
+                    <div style={itemMetaStyle}>{item.nama_event}</div>
+                    <div style={itemInfoGridStyle}>
+                      <div><span style={itemLabelStyle}>Jumlah</span><strong>{item.jumlah} {item.satuan}</strong></div>
+                      <div><span style={itemLabelStyle}>Kategori</span><strong>{item.kategori}</strong></div>
+                      <div><span style={itemLabelStyle}>Kondisi</span><strong>{item.kondisi}</strong></div>
+                    </div>
+                    {item.catatan && <div style={itemNoteStyle}><span style={itemLabelStyle}>Catatan</span>{item.catatan}</div>}
+                    <div style={itemActionsStyle}>
+                      <button onClick={() => mulaiEdit(item)} style={editButtonStyle}>Ubah</button>
+                      <button onClick={() => hapusBarang(item.id)} style={deleteButtonStyle}>Hapus</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </section>
 
@@ -304,6 +335,19 @@ const labelStyle = { display: "block", fontSize: "14px", fontWeight: "bold", col
 const inputStyle = { width: "100%", boxSizing: "border-box" as const, padding: "12px", border: "1px solid #d0d5dd", borderRadius: "9px", fontSize: "14px", background: "#fff" };
 const buttonStyle = { marginTop: "20px", border: "none", borderRadius: "10px", padding: "13px 22px", background: "#0f766e", color: "#fff", cursor: "pointer", fontWeight: "bold", fontSize: "15px" };
 const whatsappButtonStyle = { border: "none", borderRadius: "10px", padding: "12px 18px", background: "#16a34a", color: "#fff", cursor: "pointer", fontWeight: "bold" };
+const desktopTableStyle = { display: "block" };
+const mobileListStyle = { display: "none" };
+const itemCardStyle = { border: "1px solid #dbe4e4", borderRadius: "16px", padding: "16px", marginBottom: "12px", background: "#fff" };
+const itemHeaderStyle = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" };
+const itemDateStyle = { color: "#0f766e", fontSize: "13px", fontWeight: "800" };
+const itemNameStyle = { display: "block", marginTop: "5px", fontSize: "20px", color: "#172033" };
+const itemMetaStyle = { marginTop: "6px", color: "#667085", fontSize: "14px" };
+const itemInfoGridStyle = { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px", marginTop: "16px", padding: "14px 0", borderTop: "1px solid #eaecf0", borderBottom: "1px solid #eaecf0" };
+const itemLabelStyle = { display: "block", color: "#667085", fontSize: "12px", marginBottom: "4px" };
+const itemNoteStyle = { marginTop: "12px", color: "#344054", fontSize: "14px" };
+const itemActionsStyle = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "14px" };
+const editButtonStyle = { border: "1px solid #cbd5d5", borderRadius: "8px", padding: "8px 10px", background: "#f8fafc", color: "#365b5b", cursor: "pointer", fontWeight: "bold" };
+const cancelButtonStyle = { marginTop: "20px", marginLeft: "8px", border: "1px solid #cbd5d5", borderRadius: "10px", padding: "13px 18px", background: "#f8fafc", color: "#475467", cursor: "pointer", fontWeight: "bold" };
 const deleteButtonStyle = { border: "none", borderRadius: "8px", padding: "8px 10px", background: "#fee2e2", color: "#991b1b", cursor: "pointer" };
 const toolbarStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" as const, marginBottom: "16px" };
 const smallTextStyle = { margin: "-8px 0 0", color: "#667085", fontSize: "13px" };
@@ -312,4 +356,5 @@ const emptyStyle = { padding: "30px", textAlign: "center" as const, color: "#667
 const tableStyle = { width: "100%", borderCollapse: "collapse" as const, minWidth: "1050px" };
 const thStyle = { textAlign: "left" as const, padding: "12px", borderBottom: "1px solid #d0d5dd", fontSize: "13px", whiteSpace: "nowrap" as const };
 const tdStyle = { padding: "12px", borderBottom: "1px solid #eaecf0", fontSize: "13px", whiteSpace: "nowrap" as const };
+const mobileMediaNote = null;
 const footerStyle = { textAlign: "center" as const, color: "#98a2b3", fontSize: "13px", marginTop: "24px" };

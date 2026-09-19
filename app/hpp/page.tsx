@@ -598,19 +598,10 @@ export default function HppPage() {
         </section>
 
         <section style={{ ...cardStyle, marginBottom: "20px" }}>
-          <h2 style={sectionTitleStyle}>4. Perhitungan Otomatis</h2>
-          {!selectedMenu ? <p style={{ color: "#667085" }}>Pilih menu yang sudah memiliki resep untuk melihat perhitungan.</p> : <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
-              <div style={{ background: "#ecfdf3", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#166534" }}>Total biaya resep</div><strong style={{ fontSize: "24px", color: "#166534" }}>{formatRupiah(selectedMenuCost)}</strong></div>
-              <div style={{ background: "#ecfdf3", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#166534" }}>HPP per porsi</div><strong style={{ fontSize: "24px", color: "#166534" }}>{formatRupiah(hppPerPorsi)}</strong></div>
-              <div style={{ background: "#eff6ff", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#1d4ed8" }}>Harga jual</div><strong style={{ fontSize: "24px", color: "#1d4ed8" }}>{formatRupiah(selectedMenu.harga_jual)}</strong></div>
-              <div style={{ background: "#eff6ff", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#1d4ed8" }}>Margin kotor</div><strong style={{ fontSize: "24px", color: marginRupiah >= 0 ? "#1d4ed8" : "#b91c1c" }}>{formatRupiah(marginRupiah)}</strong></div>
-              <div style={{ background: "#fffbeb", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#92400e" }}>HPP % dari harga jual</div><strong style={{ fontSize: "24px", color: "#92400e" }}>{formatPercent(hppPercent)}</strong></div>
-              <div style={{ background: "#fffbeb", borderRadius: "14px", padding: "18px" }}><div style={{ color: "#92400e" }}>Margin %</div><strong style={{ fontSize: "24px", color: "#92400e" }}>{formatPercent(marginPercent)}</strong></div>
-            </div>
-
+          <h2 style={sectionTitleStyle}>4. Harga Jual dari HPP</h2>
+          {!selectedMenu ? <p style={{ color: "#667085" }}>Pilih menu yang sudah memiliki resep untuk menghitung HPP dan harga jual.</p> : <>
             <div style={{ borderTop: "1px solid #eaecf0", marginTop: "24px", paddingTop: "22px" }}>
-              <h3 style={{ margin: "0 0 8px", color: "#0f766e", fontSize: "20px" }}>Harga Jual dari HPP</h3>
+              
               <p style={{ color: "#667085", marginTop: 0 }}>
                 Rumus: <strong>HPP per porsi + keuntungan = harga jual</strong>. Keuntungan bisa ditentukan dalam persen dari HPP atau nominal Rupiah.
               </p>

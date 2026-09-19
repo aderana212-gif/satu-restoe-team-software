@@ -216,11 +216,16 @@ export default function HppPage() {
   }, []);
 
   const selectedMenu = menus.find((menu) => menu.id === selectedMenuId);
-  useEffect(() => {
-    if (!selectedMenu) return;
-    setProfitMode(selectedMenu.profit_mode);
-    setProfitValue(String(selectedMenu.profit_value ?? 30));
-  }, [selectedMenu?.id]);
+
+  function handleMenuSelect(value: string) {
+    const id = Number(value);
+    setSelectedMenuId(id);
+    const menu = menus.find((item) => item.id === id);
+    if (menu) {
+      setProfitMode(menu.profit_mode);
+      setProfitValue(String(menu.profit_value ?? 30));
+    }
+  }
 
   const selectedMenuLines = useMemo(
     () => recipeLines.filter((line) => line.menu_id === selectedMenuId),
@@ -542,7 +547,7 @@ export default function HppPage() {
         <section style={{ ...cardStyle, marginBottom: "20px" }}>
           <h2 style={sectionTitleStyle}>3. Resep Menu</h2>
           {menus.length === 0 ? <p style={{ color: "#667085" }}>Tambahkan menu terlebih dahulu.</p> : <>
-            <select value={selectedMenuId ?? ""} onChange={(e) => setSelectedMenuId(Number(e.target.value))} style={inputStyle}>
+            <select value={selectedMenuId ?? ""} onChange={(e) => handleMenuSelect(e.target.value)} style={inputStyle}>
               {menus.map((menu) => <option key={menu.id} value={menu.id}>{menu.nama_menu}</option>)}
             </select>
             {selectedMenu && <div style={{ background: "#f8fafc", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>

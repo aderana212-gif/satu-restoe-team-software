@@ -275,12 +275,9 @@ export default function BanquetPage() {
   };
 
   const kirimWhatsAppCustomer = (order: BanquetOrder) => {
-    const nomor = normalizePhone(order.kontak);
-    if (!nomor || nomor.length < 10) {
-      alert("Nomor WhatsApp customer belum diisi atau tidak valid. Silakan ubah pesanan terlebih dahulu.");
-      return;
-    }
-    const url = `https://wa.me/${nomor}?text=${encodeURIComponent(buildMessage(order, false))}`;
+    // Sama seperti WA Internal: buka WhatsApp Messenger dengan pemilih chat,
+    // tanpa mewajibkan nomor customer di form.
+    const url = `https://wa.me/?text=${encodeURIComponent(buildMessage(order, false))}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -400,18 +397,23 @@ export default function BanquetPage() {
             {filteredOrders.map((order) => (
               <div key={order.id} style={styles.orderRow}>
                 <div style={styles.orderMain}>
-                  <div style={styles.date}>{formatTanggal(order.tanggal)}</div>
-                  <strong style={styles.orderName}>{order.namaAcara}</strong>
-                  <div style={styles.muted}>{order.namaPemesan} · {order.kontak || "Kontak belum diisi"}</div>
-                  <div style={styles.muted}>{order.jumlahTamu} tamu · {order.venue} · Ready {order.jamReady}</div>
-                </div>
-                <div style={styles.orderSide}>
-                  <span style={statusStyle(order.status)}>{order.status}</span>
-                  <strong>{formatRupiah(order.jumlahTamu * order.hargaPerOrang)}</strong>
-                  <div style={styles.rowButtons}>
+                  <div style={styles.orderTop}>
+                    <div>
+                      <div style={styles.date}>{formatTanggal(order.tanggal)}</div>
+                      <strong style={styles.orderName}>{order.namaAcara}</strong>
+                      <div style={styles.muted}>{order.namaPemesan} · {order.kontak || "Kontak belum diisi"}</div>
+                      <div style={styles.muted}>{order.jumlahTamu} tamu · {order.venue} · Ready {order.jamReady}</div>
+                    </div>
+                    <div style={styles.orderSummary}>
+                      <span style={statusStyle(order.status)}>{order.status}</span>
+                      <strong>{formatRupiah(order.jumlahTamu * order.hargaPerOrang)}</strong>
+                    </div>
+                  </div>
+                  <div style={styles.rowActions}>
                     <button onClick={() => setSelectedOrder(order)} style={styles.detailButton}>Detail</button>
                     <button onClick={() => mulaiEdit(order)} style={styles.secondaryButton}>Ubah</button>
                     <button onClick={() => hapusPesanan(order.id)} style={styles.deleteButton}>Hapus</button>
+                    <button onClick={() => kirimWhatsAppCustomer(order)} style={styles.customerButton}>WA Customer</button>
                   </div>
                 </div>
               </div>
@@ -527,12 +529,14 @@ const styles: Record<string, React.CSSProperties> = {
   orderList: { display: "flex", flexDirection: "column", gap: 10 },
   orderRow: { border: "1px solid #e2e8f0", borderRadius: 16, padding: 15, display: "flex", justifyContent: "space-between", gap: 15, flexWrap: "wrap" },
   orderMain: { minWidth: 0, flex: 1 },
-  orderSide: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 7 },
+  orderTop: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 18, flexWrap: "wrap" },
+  orderSummary: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, minWidth: 150 },
+  orderSide: { display: "none" },
   date: { color: "#0f766e", fontSize: 12, fontWeight: 800 },
   orderName: { display: "block", fontSize: 18, marginTop: 3 },
   muted: { color: "#64748b", fontSize: 13, lineHeight: 1.5 },
   status: { borderRadius: 999, padding: "5px 10px", fontSize: 12, fontWeight: 800 },
-  rowButtons: { display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" },
+  rowActions: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginTop: 18, paddingTop: 14, borderTop: "1px solid #e2e8f0" },
   detailButton: { border: 0, borderRadius: 9, padding: "8px 11px", background: "#dbeafe", color: "#1d4ed8", fontWeight: 800, cursor: "pointer" },
   deleteButton: { border: 0, borderRadius: 9, padding: "8px 11px", background: "#fee2e2", color: "#991b1b", fontWeight: 800, cursor: "pointer" },
   empty: { border: "1px dashed #cbd5d5", borderRadius: 14, padding: 25, textAlign: "center", color: "#64748b" },
@@ -544,6 +548,6 @@ const styles: Record<string, React.CSSProperties> = {
   whatsappTitle: { fontWeight: 900, fontSize: 18, color: "#115e59" },
   whatsappButtons: { display: "flex", flexWrap: "wrap", gap: 10, marginTop: 13 },
   internalButton: { border: 0, borderRadius: 12, padding: "13px 17px", background: "#dcfce7", color: "#166534", fontWeight: 900, cursor: "pointer" },
-  customerButton: { border: 0, borderRadius: 12, padding: "13px 17px", background: "#dbeafe", color: "#1d4ed8", fontWeight: 900, cursor: "pointer" },
+  customerButton: { border: "2px solid #22c55e", borderRadius: 10, padding: "10px 12px", background: "#ecfdf5", color: "#15803d", fontWeight: 900, cursor: "pointer" },
   footer: { textAlign: "center", color: "#94a3b8", fontSize: 12, paddingTop: 12 },
 };

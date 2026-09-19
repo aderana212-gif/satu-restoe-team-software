@@ -3,7 +3,6 @@
 import Link from "next/link";
 
 const modules = [
-  { title: "Kasir POS", description: "Kelola transaksi dine-in, takeaway, delivery, meja, pembayaran, dan simulasi otorisasi Owner untuk void.", href: "/pos", icon: "🛒", color: "#fff1e5" },
   { title: "HPP & Harga Jual", description: "Kelola bahan, resep, harga pokok produksi, harga jual, dan margin keuntungan.", href: "/hpp", icon: "🧮", color: "#ecfdf3" },
   { title: "Banquet Order", description: "Catat pesanan rombongan, gathering, study tour, dan acara restoran.", href: "/banquet", icon: "📋", color: "#eff6ff" },
   { title: "Barang Terpakai", description: "Catat barang yang masih tersisa setelah event atau acara selesai, lengkap dengan jumlah, kondisi, dan catatan.", href: "/barang-terpakai", icon: "📦", color: "#fff7ed" },

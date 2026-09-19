@@ -247,7 +247,7 @@ export default function BarangTerpakaiPage() {
             </Field>
           </div>
           <button onClick={tambahBarang} disabled={saving} style={buttonStyle}>
-            {saving ? "Menyimpan..." : editingId ? "Simpan Perubahan" : "+ Simpan Barang Tersisa"}
+            {saving ? "Menyimpan..." : editingId ? "Simpan Perubahan" : "+ Simpan Barang Terpakai"}
           </button>
           {editingId && <button onClick={() => { setEditingId(null); setForm(initialForm); }} style={cancelButtonStyle}>Batal Ubah</button>}
         </section>

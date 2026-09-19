@@ -216,6 +216,12 @@ export default function HppPage() {
   }, []);
 
   const selectedMenu = menus.find((menu) => menu.id === selectedMenuId);
+  useEffect(() => {
+    if (!selectedMenu) return;
+    setProfitMode(selectedMenu.profit_mode);
+    setProfitValue(String(selectedMenu.profit_value ?? 30));
+  }, [selectedMenu?.id]);
+
   const selectedMenuLines = useMemo(
     () => recipeLines.filter((line) => line.menu_id === selectedMenuId),
     [recipeLines, selectedMenuId]

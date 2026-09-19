@@ -5,22 +5,28 @@ import { supabase } from "../../../lib/supabase";
 
 type Aset = {
   id: string;
+  kode: string;
   nama: string;
   kategori: string;
   jumlah: number;
   satuan: string;
   kondisi: string;
   lokasi: string;
+  tanggal_perolehan: string | null;
+  harga_perolehan: number;
   keterangan: string;
 };
 
 const initialForm = {
+  kode: "",
   nama: "",
   kategori: "Peralatan makan",
   jumlah: "",
   satuan: "Pcs",
   kondisi: "baik",
   lokasi: "",
+  tanggal_perolehan: "",
+  harga_perolehan: "",
   catatan: "",
 };
 
@@ -28,6 +34,7 @@ export default function InventarisPage() {
   const [aset, setAset] = useState<Aset[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [kode, setKode] = useState(initialForm.kode);
   const [nama, setNama] = useState(initialForm.nama);
   const [kategori, setKategori] = useState(initialForm.kategori);
   const [jumlah, setJumlah] = useState(initialForm.jumlah);
@@ -35,6 +42,8 @@ export default function InventarisPage() {
   const [kondisi, setKondisi] = useState(initialForm.kondisi);
   const [lokasi, setLokasi] = useState(initialForm.lokasi);
   const [catatan, setCatatan] = useState(initialForm.catatan);
+  const [tanggalPerolehan, setTanggalPerolehan] = useState(initialForm.tanggal_perolehan);
+  const [hargaPerolehan, setHargaPerolehan] = useState(initialForm.harga_perolehan);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -43,7 +52,7 @@ export default function InventarisPage() {
     setLoading(true);
     const { data, error: loadError } = await supabase
       .from("gudang_inventaris")
-      .select("id,nama,kategori,jumlah,satuan,kondisi,lokasi,keterangan")
+      .select("id,kode,nama,kategori,jumlah,satuan,kondisi,lokasi,tanggal_perolehan,harga_perolehan,keterangan")
       .eq("aktif", true)
       .order("nama");
 
@@ -57,6 +66,7 @@ export default function InventarisPage() {
   }, []);
 
   function resetForm() {
+    setKode("");
     setNama("");
     setKategori("Peralatan makan");
     setJumlah("");
@@ -64,6 +74,8 @@ export default function InventarisPage() {
     setKondisi("baik");
     setLokasi("");
     setCatatan("");
+    setTanggalPerolehan("");
+    setHargaPerolehan("");
     setEditingId(null);
   }
 
@@ -74,6 +86,7 @@ export default function InventarisPage() {
 
   function bukaEdit(item: Aset) {
     setEditingId(item.id);
+    setKode(item.kode || "");
     setNama(item.nama || "");
     setKategori(item.kategori || "Peralatan makan");
     setJumlah(String(item.jumlah ?? ""));
@@ -81,6 +94,8 @@ export default function InventarisPage() {
     setKondisi(item.kondisi || "baik");
     setLokasi(item.lokasi || "");
     setCatatan(item.keterangan || "");
+    setTanggalPerolehan(item.tanggal_perolehan || "");
+    setHargaPerolehan(item.harga_perolehan ? String(item.harga_perolehan) : "");
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -93,12 +108,15 @@ export default function InventarisPage() {
 
     setSaving(true);
     const payload = {
+      kode: kode.trim() || null,
       nama: nama.trim(),
       kategori,
       jumlah: Number(jumlah),
       satuan,
       kondisi,
       lokasi: lokasi.trim() || null,
+      tanggal_perolehan: tanggalPerolehan || null,
+      harga_perolehan: Number(hargaPerolehan || 0),
       keterangan: catatan.trim() || null,
     };
 
@@ -170,6 +188,7 @@ export default function InventarisPage() {
               </div>
 
               <div style={formGridStyle}>
+                <Field label="Kode asset"><input value={kode} onChange={(e) => setKode(e.target.value)} placeholder="Contoh: AST-001" style={inputStyle} /></Field>
                 <Field label="Nama barang *">
                   <input
                     value={nama}
@@ -233,6 +252,8 @@ export default function InventarisPage() {
                     style={inputStyle}
                   />
                 </Field>
+                <Field label="Tanggal perolehan"><input type="date" value={tanggalPerolehan} onChange={(e) => setTanggalPerolehan(e.target.value)} style={inputStyle} /></Field>
+                <Field label="Harga perolehan"><input type="number" min="0" value={hargaPerolehan} onChange={(e) => setHargaPerolehan(e.target.value)} style={inputStyle} /></Field>
                 <Field label="Catatan">
                   <input
                     value={catatan}
@@ -284,6 +305,7 @@ export default function InventarisPage() {
                   {aset.map((item, index) => (
                     <tr key={item.id}>
                       <td style={tdStyle}>{index + 1}</td>
+                      <td style={tdStyle}>{item.kode || "-"}</td>
                       <td style={tdStyle}>{item.nama}</td>
                       <td style={tdStyle}>{item.kategori || "-"}</td>
                       <td style={tdStyle}>{Number(item.jumlah)} {item.satuan}</td>

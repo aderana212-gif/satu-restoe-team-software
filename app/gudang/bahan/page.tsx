@@ -218,7 +218,13 @@ const statValueStyle = { display: "block", color: "#287f78", fontSize: "28px", m
 const lowStockValueStyle = { display: "block", color: "#d98216", fontSize: "28px", marginTop: "8px" };
 const cardStyle = { marginTop: "24px", border: "1px solid #e5e9ef", borderRadius: "16px", padding: "20px" };
 const subTitleStyle = { color: "#287f78", marginTop: 0 };
-const tableSectionStyle = { marginTop: "24px" };\nconst tableTitleRowStyle = { border: "1px solid #e5e9ef", borderBottom: 0, borderRadius: "16px 16px 0 0", background: "#f8fafc" };\nconst swipeHintStyle = { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "9px 12px", borderTop: "1px solid #e5e9ef", color: "#287f78", fontSize: "13px", fontWeight: 700, background: "#f0fdfa" };\nconst swipeHandStyle = { fontSize: "16px" };\nconst swipeArrowStyle = { fontSize: "20px", lineHeight: 1 };\nconst swipeHintTextStyle = { color: "#687386", fontWeight: 500 };\nconst tableWrapperStyle = { border: "1px solid #e5e9ef", borderRadius: "0 0 16px 16px", overflow: "auto" as const };
+const tableSectionStyle = { marginTop: "24px" };
+const tableTitleRowStyle = { border: "1px solid #e5e9ef", borderBottom: 0, borderRadius: "16px 16px 0 0", background: "#f8fafc" };
+const swipeHintStyle = { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "9px 12px", borderTop: "1px solid #e5e9ef", color: "#287f78", fontSize: "13px", fontWeight: 700, background: "#f0fdfa" };
+const swipeHandStyle = { fontSize: "16px" };
+const swipeArrowStyle = { fontSize: "20px", lineHeight: 1 };
+const swipeHintTextStyle = { color: "#687386", fontWeight: 500 };
+const tableWrapperStyle = { border: "1px solid #e5e9ef", borderRadius: "0 0 16px 16px", overflow: "auto" as const };
 const tableHeaderStyle = { padding: "18px", background: "#f8fafc", fontWeight: 700, color: "#243047", margin: 0 };
 const emptyStateStyle = { padding: "36px 20px", textAlign: "center" as const, color: "#687386" };
 const tableStyle = { width: "100%", borderCollapse: "collapse" as const, minWidth: "620px" };

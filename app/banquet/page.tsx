@@ -572,6 +572,6 @@ const styles: Record<string, React.CSSProperties> = {
   whatsappTitle: { fontWeight: 900, fontSize: 18, color: "#115e59" },
   whatsappButtons: { display: "flex", flexWrap: "wrap", gap: 10, marginTop: 13 },
   internalButton: { border: 0, borderRadius: 12, padding: "13px 17px", background: "#dcfce7", color: "#166534", fontWeight: 900, cursor: "pointer" },
-  customerButton: { border: "2px solid #22c55e", borderRadius: 10, padding: "10px 12px", background: "#ecfdf5", color: "#15803d", fontWeight: 900, cursor: "pointer" },
+  customerButton: { border: "2px solid #22c55e", borderRadius: 10, padding: "10px 8px", background: "#ecfdf5", color: "#15803d", fontWeight: 800, fontSize: 12, lineHeight: 1.15, cursor: "pointer", whiteSpace: "normal", overflowWrap: "anywhere" },
   footer: { textAlign: "center", color: "#94a3b8", fontSize: 12, paddingTop: 12 },
 };

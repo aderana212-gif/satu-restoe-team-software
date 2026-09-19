@@ -397,18 +397,39 @@ export default function BanquetPage() {
             {filteredOrders.map((order) => (
               <div key={order.id} style={styles.orderRow}>
                 <div style={styles.orderMain}>
-                  <div style={styles.orderTop}>
-                    <div>
-                      <div style={styles.date}>{formatTanggal(order.tanggal)}</div>
-                      <strong style={styles.orderName}>{order.namaAcara}</strong>
-                      <div style={styles.muted}>{order.namaPemesan} · {order.kontak || "Kontak belum diisi"}</div>
-                      <div style={styles.muted}>{order.jumlahTamu} tamu · {order.venue} · Ready {order.jamReady}</div>
+                  <div style={styles.bookingHeader}>
+                    <div style={styles.date}>{formatTanggal(order.tanggal)}</div>
+                    <span style={statusStyle(order.status)}>{order.status}</span>
+                  </div>
+
+                  <div style={styles.bookingHero}>
+                    <div style={{ minWidth: 0 }}>
+                      <strong style={styles.orderName}>{order.namaPemesan}</strong>
+                      <div style={styles.muted}>{order.kontak || "Kontak belum diisi"}</div>
                     </div>
-                    <div style={styles.orderSummary}>
-                      <span style={statusStyle(order.status)}>{order.status}</span>
-                      <strong>{formatRupiah(order.jumlahTamu * order.hargaPerOrang)}</strong>
+                    <strong style={styles.orderAmount}>{formatRupiah(order.jumlahTamu * order.hargaPerOrang)}</strong>
+                  </div>
+
+                  <div style={styles.bookingDetails}>
+                    <div>
+                      <span style={styles.detailLabel}>Jumlah Tamu</span>
+                      <strong>{order.jumlahTamu} tamu</strong>
+                    </div>
+                    <div>
+                      <span style={styles.detailLabel}>Lokasi / Area</span>
+                      <strong>{order.venue}</strong>
+                    </div>
+                    <div>
+                      <span style={styles.detailLabel}>Waktu Ready</span>
+                      <strong>{order.jamReady || "-"}</strong>
                     </div>
                   </div>
+
+                  <div style={styles.bookingNote}>
+                    <span style={styles.detailLabel}>Catatan</span>
+                    <strong>{order.catatan || "-"}</strong>
+                  </div>
+
                   <div style={styles.rowActions}>
                     <button onClick={() => setSelectedOrder(order)} style={styles.detailButton}>Detail</button>
                     <button onClick={() => mulaiEdit(order)} style={styles.secondaryButton}>Ubah</button>
@@ -527,16 +548,19 @@ const styles: Record<string, React.CSSProperties> = {
   toolbar: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) 180px", gap: 10, marginBottom: 15 },
   filterSelect: { border: "1px solid #cbd5d5", borderRadius: 12, padding: "12px 13px", fontSize: 15, background: "white" },
   orderList: { display: "flex", flexDirection: "column", gap: 10 },
-  orderRow: { border: "1px solid #e2e8f0", borderRadius: 16, padding: 15, display: "flex", justifyContent: "space-between", gap: 15, flexWrap: "wrap" },
-  orderMain: { minWidth: 0, flex: 1 },
-  orderTop: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 18, flexWrap: "wrap" },
-  orderSummary: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, minWidth: 150 },
-  orderSide: { display: "none" },
-  date: { color: "#0f766e", fontSize: 12, fontWeight: 800 },
-  orderName: { display: "block", fontSize: 18, marginTop: 3 },
-  muted: { color: "#64748b", fontSize: 13, lineHeight: 1.5 },
-  status: { borderRadius: 999, padding: "5px 10px", fontSize: 12, fontWeight: 800 },
-  rowActions: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginTop: 18, paddingTop: 14, borderTop: "1px solid #e2e8f0" },
+  orderRow: { border: "1px solid #dbe4e4", borderRadius: 20, padding: "22px 20px 18px", background: "#fff", boxShadow: "0 4px 16px rgba(15, 118, 110, .045)" },
+  orderMain: { minWidth: 0, width: "100%" },
+  bookingHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 },
+  date: { color: "#0f766e", fontSize: 18, fontWeight: 900, lineHeight: 1.3 },
+  orderName: { display: "block", fontSize: 25, marginTop: 0, color: "#183b3b", lineHeight: 1.2 },
+  muted: { color: "#64748b", fontSize: 15, lineHeight: 1.55 },
+  status: { borderRadius: 999, padding: "9px 16px", fontSize: 14, fontWeight: 900, whiteSpace: "nowrap" },
+  bookingHero: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 18, marginTop: 20 },
+  orderAmount: { fontSize: 25, fontWeight: 900, color: "#173b3b", whiteSpace: "nowrap" },
+  bookingDetails: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14, marginTop: 22, padding: "18px 0", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" },
+  detailLabel: { display: "block", color: "#64748b", fontSize: 13, marginBottom: 5 },
+  bookingNote: { display: "flex", flexDirection: "column", gap: 4, paddingTop: 16 },
+  rowActions: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginTop: 18, paddingTop: 16, borderTop: "1px solid #e2e8f0" },
   detailButton: { border: 0, borderRadius: 9, padding: "8px 11px", background: "#dbeafe", color: "#1d4ed8", fontWeight: 800, cursor: "pointer" },
   deleteButton: { border: 0, borderRadius: 9, padding: "8px 11px", background: "#fee2e2", color: "#991b1b", fontWeight: 800, cursor: "pointer" },
   empty: { border: "1px dashed #cbd5d5", borderRadius: 14, padding: 25, textAlign: "center", color: "#64748b" },

@@ -303,6 +303,7 @@ export default function InventarisPage() {
                 <thead>
                   <tr>
                     <th style={thStyle}>No</th>
+                    <th style={thStyle}>Kode Asset</th>
                     <th style={thStyle}>Nama Barang</th>
                     <th style={thStyle}>Kategori</th>
                     <th style={thStyle}>Jumlah</th>

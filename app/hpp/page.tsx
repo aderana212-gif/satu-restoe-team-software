@@ -610,24 +610,48 @@ export default function HppPage() {
             </div>
 
             <div style={{ borderTop: "1px solid #eaecf0", marginTop: "24px", paddingTop: "22px" }}>
-              <h3 style={{ margin: "0 0 8px", color: "#0f766e", fontSize: "20px" }}>Keuntungan & Harga Jual</h3>
-              <p style={{ color: "#667085", marginTop: 0 }}>Tentukan keuntungan sebagai persentase dari HPP atau nilai Rupiah. Harga jual dihitung otomatis.</p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
-                <select value={profitMode} onChange={(e) => setProfitMode(e.target.value as "percent" | "rupiah")} style={inputStyle}>
-                  <option value="percent">Keuntungan (%) dari HPP</option>
-                  <option value="rupiah">Keuntungan (Rp)</option>
-                </select>
-                <input type="number" min="0" step="0.01" value={profitValue} onChange={(e) => setProfitValue(e.target.value)} placeholder={profitMode === "percent" ? "Contoh: 30" : "Contoh: 5000"} style={inputStyle} />
+              <h3 style={{ margin: "0 0 8px", color: "#0f766e", fontSize: "20px" }}>Harga Jual dari HPP</h3>
+              <p style={{ color: "#667085", marginTop: 0 }}>
+                Rumus: <strong>HPP per porsi + keuntungan = harga jual</strong>. Keuntungan bisa ditentukan dalam persen dari HPP atau nominal Rupiah.
+              </p>
+
+              <div style={{ background: "#ecfdf3", borderRadius: "14px", padding: "18px", marginBottom: "14px" }}>
+                <div style={{ color: "#166534" }}>1. HPP per porsi</div>
+                <strong style={{ fontSize: "30px", color: "#166534" }}>{formatRupiah(hppPerPorsi)}</strong>
+                <div style={{ color: "#667085", marginTop: "6px" }}>Total biaya resep ÷ jumlah porsi</div>
               </div>
-              <div style={{ background: "#ecfdf3", borderRadius: "14px", padding: "18px", marginTop: "4px" }}>
-                <div style={{ color: "#166534" }}>Keuntungan</div>
-                <strong style={{ fontSize: "22px", color: "#166534" }}>{formatRupiah(calculatedProfit)}</strong>
-                <div style={{ color: "#166534", marginTop: "10px" }}>Harga jual otomatis</div>
-                <strong style={{ fontSize: "30px", color: "#166534" }}>{formatRupiah(calculatedSellingPrice)}</strong>
-                <div style={{ color: "#667085", marginTop: "8px" }}>HPP per porsi: {formatRupiah(hppPerPorsi)}</div>
+
+              <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "18px", marginBottom: "14px" }}>
+                <div style={{ color: "#344054", fontWeight: 700, marginBottom: "10px" }}>2. Tentukan keuntungan</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+                  <select value={profitMode} onChange={(e) => setProfitMode(e.target.value as "percent" | "rupiah")} style={inputStyle}>
+                    <option value="percent">Keuntungan (%) dari HPP</option>
+                    <option value="rupiah">Keuntungan (Rp)</option>
+                  </select>
+                  <input type="number" min="0" step="0.01" value={profitValue} onChange={(e) => setProfitValue(e.target.value)} placeholder={profitMode === "percent" ? "Contoh: 30" : "Contoh: 5.000"} style={inputStyle} />
+                </div>
+                <div style={{ color: "#667085", marginTop: "8px" }}>
+                  {profitMode === "percent" ? "Contoh 30% berarti keuntungan = 30% × HPP." : "Masukkan langsung nilai keuntungan per porsi."}
+                </div>
               </div>
-              <button onClick={saveSellingPrice} disabled={saving || hppPerPorsi <= 0} style={{ ...buttonStyle, marginTop: "14px" }}>Simpan Harga Jual</button>
-            </div>
+
+              <div style={{ background: "#eff6ff", borderRadius: "14px", padding: "18px", marginBottom: "14px" }}>
+                <div style={{ color: "#1d4ed8" }}>3. Keuntungan</div>
+                <strong style={{ fontSize: "26px", color: "#1d4ed8" }}>{formatRupiah(calculatedProfit)}</strong>
+              </div>
+
+              <div style={{ background: "#ecfdf3", borderRadius: "14px", padding: "18px" }}>
+                <div style={{ color: "#166534" }}>4. Harga jual otomatis</div>
+                <strong style={{ fontSize: "32px", color: "#166534" }}>{formatRupiah(calculatedSellingPrice)}</strong>
+                <div style={{ color: "#667085", marginTop: "8px" }}>
+                  {formatRupiah(hppPerPorsi)} + {formatRupiah(calculatedProfit)}
+                </div>
+              </div>
+
+              <button onClick={saveSellingPrice} disabled={saving || hppPerPorsi <= 0} style={{ ...buttonStyle, marginTop: "14px" }}>
+                Simpan Harga Jual
+              </button>
+            </div>            </div>
           </>}
         </section>
 

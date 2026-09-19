@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 
 type Bahan = {
@@ -155,7 +155,47 @@ export default function BahanPage() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label style={fieldLabelStyle}><span style={labelStyle}>{label}</span>{children}</label>; }
 function Stat({ label, value, warning = false }: { label: string; value: number; warning?: boolean }) { return <div style={statStyle}><div style={statLabelStyle}>{label}</div><strong style={warning ? lowStockValueStyle : statValueStyle}>{value}</strong></div>; }
-function DataTable({ title, children }: { title: string; children: React.ReactNode }) { return <div style={tableWrapperStyle}><h2 style={tableHeaderStyle}>{title}</h2>{children}</div>; }
+function DataTable({ title, children }: { title: string; children: React.ReactNode }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canSwipe, setCanSwipe] = useState(false);
+  const [hasSwiped, setHasSwiped] = useState(false);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const checkOverflow = () => {
+      setCanSwipe(el.scrollWidth > el.clientWidth + 4);
+      if (el.scrollLeft > 4) setHasSwiped(true);
+    };
+
+    checkOverflow();
+    window.addEventListener("resize", checkOverflow);
+    el.addEventListener("scroll", checkOverflow, { passive: true });
+
+    return () => {
+      window.removeEventListener("resize", checkOverflow);
+      el.removeEventListener("scroll", checkOverflow);
+    };
+  }, [children]);
+
+  return (
+    <div style={tableSectionStyle}>
+      <div style={tableTitleRowStyle}>
+        <h2 style={tableHeaderStyle}>{title}</h2>
+        {canSwipe && !hasSwiped && (
+          <div style={swipeHintStyle} aria-label="Geser tabel ke kiri untuk melihat informasi lainnya">
+            <span style={swipeHandStyle}>☝️</span>
+            <span>Geser ke kiri</span>
+            <span style={swipeArrowStyle}>→</span>
+            <span style={swipeHintTextStyle}>untuk melihat info lainnya</span>
+          </div>
+        )}
+      </div>
+      <div ref={scrollRef} style={tableWrapperStyle}>{children}</div>
+    </div>
+  );
+}
 
 const pageStyle = { minHeight: "100vh", background: "#f5f7fa", padding: "24px", color: "#243047" };
 const containerStyle = { maxWidth: "1100px", margin: "0 auto" };
@@ -178,7 +218,7 @@ const statValueStyle = { display: "block", color: "#287f78", fontSize: "28px", m
 const lowStockValueStyle = { display: "block", color: "#d98216", fontSize: "28px", marginTop: "8px" };
 const cardStyle = { marginTop: "24px", border: "1px solid #e5e9ef", borderRadius: "16px", padding: "20px" };
 const subTitleStyle = { color: "#287f78", marginTop: 0 };
-const tableWrapperStyle = { marginTop: "24px", border: "1px solid #e5e9ef", borderRadius: "16px", overflow: "auto" as const };
+const tableSectionStyle = { marginTop: "24px" };\nconst tableTitleRowStyle = { border: "1px solid #e5e9ef", borderBottom: 0, borderRadius: "16px 16px 0 0", background: "#f8fafc" };\nconst swipeHintStyle = { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "9px 12px", borderTop: "1px solid #e5e9ef", color: "#287f78", fontSize: "13px", fontWeight: 700, background: "#f0fdfa" };\nconst swipeHandStyle = { fontSize: "16px" };\nconst swipeArrowStyle = { fontSize: "20px", lineHeight: 1 };\nconst swipeHintTextStyle = { color: "#687386", fontWeight: 500 };\nconst tableWrapperStyle = { border: "1px solid #e5e9ef", borderRadius: "0 0 16px 16px", overflow: "auto" as const };
 const tableHeaderStyle = { padding: "18px", background: "#f8fafc", fontWeight: 700, color: "#243047", margin: 0 };
 const emptyStateStyle = { padding: "36px 20px", textAlign: "center" as const, color: "#687386" };
 const tableStyle = { width: "100%", borderCollapse: "collapse" as const, minWidth: "620px" };

@@ -24,22 +24,38 @@ const initialForm = {
   tanggal: today(),
   nama_acara: "",
   jumlah_orang: "40",
+};
+
+type DraftItem = {
+  key: number;
+  nama_barang: string;
+  kategori: string;
+  jumlah: string;
+  satuan: string;
+  harga_satuan: string;
+  keterangan: string;
+};
+
+const newDraftItem = (key: number): DraftItem => ({
+  key,
   nama_barang: "",
   kategori: "Bahan Makanan",
   jumlah: "",
   satuan: "Kg",
   harga_satuan: "",
   keterangan: "",
-};
+});
 
 const categories = ["Bahan Makanan", "Makanan", "Minuman", "Bumbu", "Perlengkapan", "Lainnya"];
 const units = ["Kg", "Gram", "Liter", "Ml", "Porsi", "Potong", "Gelas", "Botol", "Dus", "Pcs", "Pack", "Lainnya"];
 
 export default function BarangTerpakaiPage() {
   const [form, setForm] = useState(initialForm);
+  const [draftItems, setDraftItems] = useState<DraftItem[]>([newDraftItem(1)]);
   const [items, setItems] = useState<UsageItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [nextDraftKey, setNextDraftKey] = useState(2);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -70,39 +86,59 @@ export default function BarangTerpakaiPage() {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
+  const updateDraftItem = (key: number, field: keyof Omit<DraftItem, "key">, value: string) => {
+    setDraftItems((current) => current.map((item) => item.key === key ? { ...item, [field]: value } : item));
+  };
+
+  const tambahDraftItem = () => {
+    setDraftItems((current) => [...current, newDraftItem(nextDraftKey)]);
+    setNextDraftKey((value) => value + 1);
+  };
+
+  const hapusDraftItem = (key: number) => {
+    setDraftItems((current) => current.length === 1 ? current : current.filter((item) => item.key !== key));
+  };
+
   const resetForm = () => {
     setForm({ ...initialForm, tanggal: today() });
+    setDraftItems([newDraftItem(nextDraftKey)]);
+    setNextDraftKey((value) => value + 1);
     setEditingId(null);
   };
 
   const simpanBarangTerpakai = async () => {
     const orang = Number(form.jumlah_orang);
-    const jumlah = Number(form.jumlah);
-    const harga = Number(form.harga_satuan || 0);
+    const validItems = draftItems.filter((item) => item.nama_barang.trim() || Number(item.jumlah) > 0);
 
-    if (!form.tanggal || !form.nama_acara.trim() || orang <= 0 || !form.nama_barang.trim() || jumlah <= 0) {
-      alert("Lengkapi tanggal, nama event/paket, jumlah rombongan, nama barang, dan jumlah terpakai.");
+    if (!form.tanggal || !form.nama_acara.trim() || orang <= 0 || validItems.length === 0) {
+      alert("Lengkapi tanggal, nama event/paket, jumlah rombongan, dan minimal 1 barang.");
+      return;
+    }
+
+    const invalid = validItems.find((item) => !item.nama_barang.trim() || Number(item.jumlah) <= 0);
+    if (invalid) {
+      alert("Setiap barang harus memiliki nama barang dan jumlah terpakai lebih dari 0.");
       return;
     }
 
     setSaving(true);
     setError("");
 
-    const payload = {
+    const payload = validItems.map((item) => ({
       tanggal: form.tanggal,
       nama_acara: form.nama_acara.trim(),
       jumlah_orang: orang,
-      nama_barang: form.nama_barang.trim(),
-      kategori: form.kategori,
-      jumlah,
-      satuan: form.satuan,
-      harga_satuan: harga,
-      keterangan: form.keterangan.trim(),
-    };
+      nama_barang: item.nama_barang.trim(),
+      kategori: item.kategori,
+      jumlah: Number(item.jumlah),
+      satuan: item.satuan,
+      harga_satuan: Number(item.harga_satuan || 0),
+      keterangan: item.keterangan.trim(),
+    }));
 
     const result = editingId === null
       ? await supabase.from("barang_terpakai").insert(payload)
-      : await supabase.from("barang_terpakai").update(payload).eq("id", editingId);
+      : await supabase.from("barang_terpakai").update(payload[0]).eq("id", editingId);
 
     if (result.error) {
       setError("Gagal menyimpan: " + result.error.message);
@@ -119,13 +155,16 @@ export default function BarangTerpakaiPage() {
       tanggal: item.tanggal,
       nama_acara: item.nama_acara,
       jumlah_orang: String(item.jumlah_orang),
+    });
+    setDraftItems([{
+      key: 1,
       nama_barang: item.nama_barang,
       kategori: item.kategori || "Bahan Makanan",
       jumlah: String(item.jumlah),
       satuan: item.satuan || "Kg",
       harga_satuan: item.harga_satuan ? String(item.harga_satuan) : "",
       keterangan: item.keterangan || "",
-    });
+    }]);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -141,45 +180,44 @@ export default function BarangTerpakaiPage() {
   };
 
   const selectedItems = useMemo(
+  const selectedItems = useMemo(
     () => items.filter((item) => selectedIds.includes(item.id)),
     [items, selectedIds]
   );
 
   const laporanText = (data: UsageItem[]) => {
-    const groups = data.reduce<Record<string, UsageItem[]>>((acc, item) => {
-      const key = item.id + "";
-      const groupKey = `${item.tanggal}|${item.nama_acara}|${item.jumlah_orang}`;
-      if (!acc[groupKey]) acc[groupKey] = [];
-      acc[groupKey].push(item);
-      return acc;
-    }, {});
+    const first = data[0];
+    if (!first) return "";
 
-    const lines = ["LAPORAN BARANG TERPAKAI", ""];
-    Object.values(groups).forEach((group) => {
-      const first = group[0];
-      lines.push(`Tanggal: ${first.tanggal}`);
-      lines.push(`Event/Paket: ${first.nama_acara}`);
-      lines.push(`Rombongan: ${first.jumlah_orang} orang`);
-      lines.push("");
-      group.forEach((item, index) => {
-        lines.push(`${index + 1}. ${item.nama_barang} — ${item.jumlah} ${item.satuan || ""}`);
-        lines.push(`   Per orang: ${(item.jumlah / first.jumlah_orang).toFixed(3)} ${item.satuan || ""}`);
-        if (item.keterangan) lines.push(`   Catatan: ${item.keterangan}`);
-      });
-      lines.push("");
+    const lines = [
+      "LAPORAN BARANG TERPAKAI",
+      "",
+      "Tanggal: " + first.tanggal,
+      "Event/Paket: " + first.nama_acara,
+      "Rombongan: " + first.jumlah_orang + " orang",
+      "",
+      "REKAP PEMAKAIAN:"
+    ];
+
+    data.forEach((item, index) => {
+      lines.push((index + 1) + ". " + item.nama_barang + " — " + item.jumlah + " " + (item.satuan || ""));
+      lines.push("   Per orang: " + (item.jumlah / first.jumlah_orang).toFixed(3) + " " + (item.satuan || ""));
+      if (item.keterangan) lines.push("   Catatan: " + item.keterangan);
     });
-    lines.push("Dicatat melalui Satu Restoe Team Software.");
+
+    const totalCost = data.reduce((sum, item) => sum + Number(item.total || 0), 0);
+    if (totalCost > 0) lines.push("", "Estimasi biaya pemakaian: " + formatRupiah(totalCost));
+    lines.push("", "Dicatat melalui Satu Restoe Team Software.");
     return lines.join("\n");
   };
 
-  const kirimWhatsApp = () => {
-    const data = selectedItems.length ? selectedItems : items;
+  const kirimWhatsApp = (data: UsageItem[]) => {
     if (!data.length) {
-      alert("Belum ada data pemakaian untuk dikirim.");
+      alert("Belum ada data pemakaian untuk event ini.");
       return;
     }
     const message = encodeURIComponent(laporanText(data));
-    window.open(`https://wa.me/?text=${message}`, "_blank", "noopener,noreferrer");
+    window.open("https://wa.me/?text=" + message, "_blank", "noopener,noreferrer");
   };
 
   const grouped = useMemo(() => {
@@ -207,8 +245,9 @@ export default function BarangTerpakaiPage() {
         <section style={styles.card}>
           <div style={styles.sectionHeader}>
             <div>
-              <div style={styles.step}>INPUT PEMAKAIAN</div>
-              <h2 style={styles.sectionTitle}>Catat Barang Terpakai</h2>
+              <div style={styles.step}>INPUT PEMAKAIAN EVENT</div>
+              <h2 style={styles.sectionTitle}>Catat Semua Barang dalam 1 Event</h2>
+              <p style={styles.small}>Isi seluruh item dulu, lalu simpan sekali. Semua item akan masuk ke rekap event yang sama.</p>
             </div>
             {editingId !== null && <button onClick={resetForm} style={styles.cancelButton}>Batal Ubah</button>}
           </div>
@@ -228,42 +267,62 @@ export default function BarangTerpakaiPage() {
                 ))}
               </div>
             </Field>
-            <Field label="Nama Barang">
-              <input value={form.nama_barang} onChange={(e) => updateForm("nama_barang", e.target.value)} placeholder="Contoh: Beras" style={styles.input} />
-            </Field>
-            <Field label="Kategori">
-              <select value={form.kategori} onChange={(e) => updateForm("kategori", e.target.value)} style={styles.input}>
-                {categories.map((x) => <option key={x}>{x}</option>)}
-              </select>
-            </Field>
-            <Field label="Jumlah Terpakai">
-              <input type="number" min="0.01" step="0.01" value={form.jumlah} onChange={(e) => updateForm("jumlah", e.target.value)} placeholder="Contoh: 5" style={styles.input} />
-            </Field>
-            <Field label="Satuan">
-              <select value={form.satuan} onChange={(e) => updateForm("satuan", e.target.value)} style={styles.input}>
-                {units.map((x) => <option key={x}>{x}</option>)}
-              </select>
-            </Field>
-            <Field label="Harga Satuan (Opsional)">
-              <input type="number" min="0" step="1" value={form.harga_satuan} onChange={(e) => updateForm("harga_satuan", e.target.value)} placeholder="Untuk hitung biaya pemakaian" style={styles.input} />
-            </Field>
-            <Field label="Keterangan">
-              <input value={form.keterangan} onChange={(e) => updateForm("keterangan", e.target.value)} placeholder="Contoh: 1 porsi = 250 gram" style={styles.input} />
-            </Field>
           </div>
 
-          <div style={styles.preview}>
-            <span>Pemakaian per orang</span>
-            <strong>
-              {Number(form.jumlah_orang) > 0 && Number(form.jumlah) > 0
-                ? `${(Number(form.jumlah) / Number(form.jumlah_orang)).toFixed(3)} ${form.satuan}`
-                : "-"}
-            </strong>
+          <div style={styles.draftHeader}>
+            <strong>Daftar Barang Terpakai</strong>
+            <button type="button" onClick={tambahDraftItem} style={styles.addItemButton}>+ Tambah Item</button>
+          </div>
+
+          <div style={styles.draftList}>
+            {draftItems.map((item, index) => (
+              <div key={item.key} style={styles.draftCard}>
+                <div style={styles.draftTop}>
+                  <strong>Item {index + 1}</strong>
+                  {draftItems.length > 1 && (
+                    <button type="button" onClick={() => hapusDraftItem(item.key)} style={styles.removeItemButton}>Hapus item</button>
+                  )}
+                </div>
+                <div style={styles.grid}>
+                  <Field label="Nama Barang">
+                    <input value={item.nama_barang} onChange={(e) => updateDraftItem(item.key, "nama_barang", e.target.value)} placeholder="Contoh: Beras" style={styles.input} />
+                  </Field>
+                  <Field label="Kategori">
+                    <select value={item.kategori} onChange={(e) => updateDraftItem(item.key, "kategori", e.target.value)} style={styles.input}>
+                      {categories.map((x) => <option key={x}>{x}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Jumlah Terpakai">
+                    <input type="number" min="0.01" step="0.01" value={item.jumlah} onChange={(e) => updateDraftItem(item.key, "jumlah", e.target.value)} placeholder="Contoh: 6" style={styles.input} />
+                  </Field>
+                  <Field label="Satuan">
+                    <select value={item.satuan} onChange={(e) => updateDraftItem(item.key, "satuan", e.target.value)} style={styles.input}>
+                      {units.map((x) => <option key={x}>{x}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Harga Satuan (Opsional)">
+                    <input type="number" min="0" step="1" value={item.harga_satuan} onChange={(e) => updateDraftItem(item.key, "harga_satuan", e.target.value)} placeholder="Untuk hitung biaya" style={styles.input} />
+                  </Field>
+                  <Field label="Keterangan">
+                    <input value={item.keterangan} onChange={(e) => updateDraftItem(item.key, "keterangan", e.target.value)} placeholder="Catatan item" style={styles.input} />
+                  </Field>
+                </div>
+                <div style={styles.preview}>
+                  <span>Pemakaian per orang</span>
+                  <strong>
+                    {Number(form.jumlah_orang) > 0 && Number(item.jumlah) > 0
+                      ? (Number(item.jumlah) / Number(form.jumlah_orang)).toFixed(3) + " " + item.satuan
+                      : "-"}
+                  </strong>
+                </div>
+              </div>
+            ))}
           </div>
 
           <button onClick={simpanBarangTerpakai} disabled={saving} style={styles.primaryButton}>
-            {saving ? "Menyimpan..." : editingId !== null ? "Simpan Perubahan" : "+ Simpan Barang Terpakai"}
+            {saving ? "Menyimpan semua item..." : editingId !== null ? "Simpan Perubahan Item" : "✓ Simpan Semua Item Event"}
           </button>
+
         </section>
 
         <section style={styles.card}>
@@ -271,9 +330,8 @@ export default function BarangTerpakaiPage() {
             <div>
               <div style={styles.step}>DATABASE PEMAKAIAN</div>
               <h2 style={styles.sectionTitle}>Riwayat Pemakaian</h2>
-              <p style={styles.small}>Data dikelompokkan berdasarkan tanggal, event/paket, dan jumlah rombongan.</p>
+              <p style={styles.small}>Setiap event menjadi satu rekap. Semua item event dikirim sekaligus ke WhatsApp.</p>
             </div>
-            <button onClick={kirimWhatsApp} style={styles.whatsappButton}>Kirim ke WhatsApp</button>
           </div>
 
           {error && <div style={styles.error}>{error}</div>}
@@ -294,7 +352,10 @@ export default function BarangTerpakaiPage() {
                         <strong style={styles.groupName}>{first.nama_acara}</strong>
                         <div style={styles.muted}>{first.jumlah_orang} orang · {group.items.length} item</div>
                       </div>
-                      <div style={styles.groupCost}>{totalCost > 0 ? formatRupiah(totalCost) : "Biaya belum diisi"}</div>
+                      <div style={styles.groupRight}>
+                        <div style={styles.groupCost}>{totalCost > 0 ? formatRupiah(totalCost) : "Biaya belum diisi"}</div>
+                        <button onClick={() => kirimWhatsApp(group.items)} style={styles.whatsappButton}>WA Rekap Event</button>
+                      </div>
                     </div>
 
                     <div style={styles.itemList}>
@@ -360,6 +421,12 @@ const styles: Record<string, React.CSSProperties> = {
   quick: { border: "1px solid #cbd5d5", borderRadius: 999, padding: "5px 9px", background: "#f8fafc", color: "#475467", cursor: "pointer", fontSize: 12, fontWeight: 700 },
   quickActive: { border: "1px solid #0f766e", borderRadius: 999, padding: "5px 9px", background: "#0f766e", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 800 },
   preview: { marginTop: 18, background: "#ecfdf5", borderRadius: 14, padding: "14px 16px", display: "flex", justifyContent: "space-between", gap: 12, color: "#527070" },
+  draftHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginTop: 22, marginBottom: 10 },
+  draftList: { display: "flex", flexDirection: "column", gap: 10 },
+  draftCard: { border: "1px solid #dbe4e4", borderRadius: 16, padding: 14, background: "#fbfefe" },
+  draftTop: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 },
+  addItemButton: { border: "1px solid #0f766e", borderRadius: 10, padding: "8px 11px", background: "#ecfdf5", color: "#0f766e", fontWeight: 900, cursor: "pointer" },
+  removeItemButton: { border: 0, borderRadius: 8, padding: "6px 9px", background: "#fee2e2", color: "#991b1b", fontWeight: 800, cursor: "pointer" },
   primaryButton: { marginTop: 18, width: "100%", border: 0, borderRadius: 12, padding: "14px 20px", background: "#0f766e", color: "#fff", fontWeight: 900, fontSize: 15, cursor: "pointer" },
   cancelButton: { border: "1px solid #cbd5d5", borderRadius: 10, padding: "9px 12px", background: "#f8fafc", color: "#475467", fontWeight: 800, cursor: "pointer" },
   whatsappButton: { border: 0, borderRadius: 10, padding: "11px 15px", background: "#16a34a", color: "#fff", fontWeight: 900, cursor: "pointer" },
@@ -368,6 +435,7 @@ const styles: Record<string, React.CSSProperties> = {
   groupList: { display: "flex", flexDirection: "column", gap: 12, marginTop: 18 },
   groupCard: { border: "1px solid #dbe4e4", borderRadius: 18, padding: 16, background: "#fff" },
   groupHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" },
+  groupRight: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 },
   groupDate: { color: "#0f766e", fontSize: 12, fontWeight: 900 },
   groupName: { display: "block", marginTop: 4, fontSize: 20 },
   groupCost: { color: "#173b3b", fontWeight: 900 },

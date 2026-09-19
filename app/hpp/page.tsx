@@ -540,27 +540,45 @@ export default function HppPage() {
               <strong>{selectedMenu.nama_menu}</strong>
               <div style={{ color: "#667085", marginTop: "6px" }}>Jumlah porsi: {selectedMenu.porsi} | Harga jual: {formatRupiah(selectedMenu.harga_jual)}</div>
             </div>}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
-              <select value={selectedIngredientId} onChange={(e) => setSelectedIngredientId(e.target.value)} style={inputStyle}>
-                {ingredients.length === 0 ? <option value="">Belum ada bahan</option> : ingredients.map((ingredient) => <option key={ingredient.id} value={ingredient.id}>{ingredient.nama_bahan}</option>)}
-              </select>
-              <input type="number" min="0" step="0.001" value={recipeQuantity} onChange={(e) => setRecipeQuantity(e.target.value)} placeholder="Jumlah bahan" style={inputStyle} />
-            </div>
+            {(() => {
+              const selectedIngredient = ingredients.find((item) => item.id === Number(selectedIngredientId));
+              const previewCost = selectedIngredient ? selectedIngredient.harga * (Number(recipeQuantity) || 0) : 0;
+              return (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
+                    <select value={selectedIngredientId} onChange={(e) => { setSelectedIngredientId(e.target.value); setRecipeQuantity(""); }} style={inputStyle}>
+                      {ingredients.length === 0 ? <option value="">Belum ada bahan</option> : ingredients.map((ingredient) => <option key={ingredient.id} value={ingredient.id}>{ingredient.nama_bahan} — {ingredient.satuan}</option>)}
+                    </select>
+                    <div>
+                      <input type="number" min="0" step="0.001" value={recipeQuantity} onChange={(e) => setRecipeQuantity(e.target.value)} placeholder="Jumlah pemakaian" style={{ ...inputStyle, marginBottom: "6px" }} />
+                      <div style={{ color: "#667085", fontSize: "14px" }}>
+                        Satuan: <strong>{selectedIngredient?.satuan || "-"}</strong>
+                        {selectedIngredient && recipeQuantity && Number(recipeQuantity) > 0 ? <> · Biaya: <strong>{formatRupiah(previewCost)}</strong></> : null}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ background: "#f8fafc", borderRadius: "12px", padding: "14px", marginBottom: "12px", color: "#475467" }}>
+                    <strong>Pemakaian resep:</strong> masukkan jumlah bahan sesuai satuan Master Bahan. Contoh: Beras 0,20 kg · Minyak 0,05 liter · Telur 1 pcs.
+                  </div>
+                </>
+              );
+            })()}
             <button onClick={addRecipeLine} disabled={saving || ingredients.length === 0} style={buttonStyle}>Tambah ke Resep</button>
-          <div style={{ color: "#667085", fontSize: "14px", marginTop: "14px", marginBottom: "8px", fontWeight: 600 }}>☝️ Geser tabel → untuk melihat info lainnya</div>
-          <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
+
+            <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
               <table style={tableStyle}>
-                <thead><tr><th style={cellStyle}>Bahan</th><th style={cellStyle}>Jumlah</th><th style={cellStyle}>Biaya</th><th style={cellStyle}>Aksi</th></tr></thead>
+                <thead><tr><th style={cellStyle}>Bahan</th><th style={cellStyle}>Pemakaian</th><th style={cellStyle}>Harga Satuan</th><th style={cellStyle}>Biaya</th><th style={cellStyle}>Aksi</th></tr></thead>
                 <tbody>
-                  {selectedMenuLines.length === 0 ? <tr><td style={cellStyle} colSpan={4}>Belum ada bahan dalam resep ini.</td></tr> : selectedMenuLines.map((line) => {
+                  {selectedMenuLines.length === 0 ? <tr><td style={cellStyle} colSpan={5}>Belum ada bahan dalam resep ini.</td></tr> : selectedMenuLines.map((line) => {
                     const ingredient = ingredients.find((item) => item.id === line.bahan_id);
                     const cost = ingredient ? ingredient.harga * line.jumlah : 0;
                     const isEditing = editingRecipeId === line.id;
                     return <tr key={line.id}>
                       <td style={cellStyle}>{ingredient?.nama_bahan || "-"}</td>
                       <td style={cellStyle}>
-                        {isEditing ? <input type="number" min="0" step="0.001" value={editingQuantity} onChange={(e) => setEditingQuantity(e.target.value)} style={{ ...inputStyle, marginBottom: 0, minWidth: "90px" }} /> : `${line.jumlah} ${ingredient?.satuan || ""}`}
+                        {isEditing ? <input type="number" min="0" step="0.001" value={editingQuantity} onChange={(e) => setEditingQuantity(e.target.value)} style={{ ...inputStyle, marginBottom: 0, minWidth: "90px" }} /> : <strong>{line.jumlah} {ingredient?.satuan || ""}</strong>}
                       </td>
+                      <td style={cellStyle}>{ingredient ? formatRupiah(ingredient.harga) + " / " + ingredient.satuan : "-"}</td>
                       <td style={cellStyle}>{formatRupiah(cost)}</td>
                       <td style={cellStyle}>
                         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>

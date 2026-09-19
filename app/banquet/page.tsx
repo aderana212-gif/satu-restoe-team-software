@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type OrderStatus = "Booking" | "DP" | "Lunas" | "Selesai" | "Batal";
 type Venue = "Indoor" | "Outdoor" | "Dome LT 2" | "VIP (25–30 orang)";
 
 type BanquetOrder = {
-  id: number;
+  id: string;
   tanggal: string;
   jamReady: string;
   namaAcara: string;
@@ -28,8 +29,29 @@ type BanquetOrder = {
 const VENUES: Venue[] = ["Indoor", "Outdoor", "Dome LT 2", "VIP (25–30 orang)"];
 const FACILITIES = ["Live Musik", "Karaoke Luar", "Karaoke Dalam", "Karaoke Lantai 2 Dome"];
 const STATUSES: OrderStatus[] = ["Booking", "DP", "Lunas", "Selesai", "Batal"];
-const STORAGE_KEY = "satu-restoe-banquet-orders";
 const BANK_INFO = "Bank BCA\nNo. Rekening: 7740731178\nAtas Nama: Wida Novianti";
+
+function mapDbOrder(row: any): BanquetOrder {
+  return {
+    id: String(row.id),
+    tanggal: row.event_date || "",
+    jamReady: row.booking_time || "",
+    namaAcara: row.event_name || row.agency || "",
+    namaPemesan: row.agency || "",
+    kontak: row.contact || "",
+    jumlahTamu: Number(row.guests || 0),
+    jumlahCrew: Number(row.crew || 0),
+    hargaPerOrang: Number(row.price_per_pax || 0),
+    dp: Number(row.dp || 0),
+    venue: (VENUES.includes(row.venue) ? row.venue : "Indoor") as Venue,
+    fasilitas: Array.isArray(row.facilities) ? row.facilities : [],
+    menu: row.menus || "",
+    additional: row.additional || "",
+    complimentary: row.complimentary || "",
+    status: (STATUSES.includes(row.status) ? row.status : "Booking") as OrderStatus,
+    catatan: row.notes || "",
+  };
+}
 
 const emptyForm = {
   tanggal: "",
@@ -55,26 +77,32 @@ type FormState = typeof emptyForm;
 export default function BanquetPage() {
   const [orders, setOrders] = useState<BanquetOrder[]>([]);
   const [form, setForm] = useState<FormState>(emptyForm);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<BanquetOrder | null>(null);
   const [filterStatus, setFilterStatus] = useState<"Semua" | OrderStatus>("Semua");
   const [search, setSearch] = useState("");
-  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-      if (Array.isArray(saved)) setOrders(saved);
-    } catch {
+  const loadOrders = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("banquet_orders")
+      .select("*")
+      .order("event_date", { ascending: true })
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Gagal memuat banquet_orders:", error);
+      alert("Data banquet gagal dimuat dari database. Silakan coba lagi.");
       setOrders([]);
-    } finally {
-      setLoaded(true);
+    } else {
+      setOrders((data || []).map(mapDbOrder));
     }
-  }, []);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
-  }, [orders, loaded]);
+    void loadOrders();
+  }, []);
 
   const formatRupiah = (value: number) =>
     new Intl.NumberFormat("id-ID", {
@@ -120,7 +148,7 @@ export default function BanquetPage() {
 
   const totalNilaiForm = Number(form.jumlahTamu || 0) * Number(form.hargaPerOrang || 0);
 
-  const simpanPesanan = () => {
+  const simpanPesanan = async () => {
     const jumlahTamu = Number(form.jumlahTamu);
     const jumlahCrew = Number(form.jumlahCrew || 0);
     const hargaPerOrang = Number(form.hargaPerOrang);
@@ -143,34 +171,41 @@ export default function BanquetPage() {
       return;
     }
 
-    const data: BanquetOrder = {
-      id: editingId ?? Date.now(),
-      tanggal: form.tanggal,
-      jamReady: form.jamReady,
-      namaAcara: form.namaAcara.trim(),
-      namaPemesan: form.namaPemesan.trim(),
-      kontak: form.kontak.trim(),
-      jumlahTamu,
-      jumlahCrew,
-      hargaPerOrang,
+    const payload = {
+      event_date: form.tanggal,
+      booking_time: form.jamReady,
+      event_name: form.namaAcara.trim(),
+      agency: form.namaPemesan.trim(),
+      contact: form.kontak.trim() || null,
+      guests: jumlahTamu,
+      crew: jumlahCrew,
+      price_per_pax: hargaPerOrang,
       dp,
       venue: form.venue,
-      fasilitas: form.fasilitas,
-      menu: form.menu.trim(),
-      additional: form.additional.trim(),
-      complimentary: form.complimentary.trim(),
+      facilities: form.fasilitas,
+      menus: form.menu.trim() || null,
+      additional: form.additional.trim() || null,
+      complimentary: form.complimentary.trim() || null,
       status: form.status,
-      catatan: form.catatan.trim(),
+      notes: form.catatan.trim() || null,
+      updated_at: new Date().toISOString(),
     };
 
-    setOrders((current) =>
-      editingId === null
-        ? [...current, data]
-        : current.map((order) => (order.id === editingId ? data : order)),
-    );
-    setSelectedOrder(data);
-    alert(editingId === null ? "Pesanan banquet berhasil disimpan." : "Pesanan banquet berhasil diperbarui.");
+    const result = editingId === null
+      ? await supabase.from("banquet_orders").insert({ ...payload, id: crypto.randomUUID() }).select("*").single()
+      : await supabase.from("banquet_orders").update(payload).eq("id", editingId).select("*").single();
+
+    if (result.error || !result.data) {
+      console.error("Gagal menyimpan banquet:", result.error);
+      alert("Pesanan banquet gagal disimpan: " + (result.error?.message || "database tidak mengembalikan data"));
+      return;
+    }
+
+    const savedOrder = mapDbOrder(result.data);
+    setSelectedOrder(savedOrder);
+    alert(editingId === null ? "Pesanan banquet berhasil disimpan ke database." : "Pesanan banquet berhasil diperbarui di database.");
     resetForm();
+    await loadOrders();
   };
 
   const mulaiEdit = (order: BanquetOrder) => {
@@ -196,11 +231,17 @@ export default function BanquetPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const hapusPesanan = (id: number) => {
+  const hapusPesanan = async (id: string) => {
     if (!confirm("Hapus pesanan banquet ini?")) return;
-    setOrders((current) => current.filter((order) => order.id !== id));
+    const { error } = await supabase.from("banquet_orders").delete().eq("id", id);
+    if (error) {
+      console.error("Gagal menghapus banquet:", error);
+      alert("Pesanan banquet gagal dihapus dari database.");
+      return;
+    }
     if (selectedOrder?.id === id) setSelectedOrder(null);
     if (editingId === id) resetForm();
+    await loadOrders();
   };
 
   const buildMessage = (order: BanquetOrder, internal: boolean) => {
@@ -354,7 +395,8 @@ export default function BanquetPage() {
           </div>
 
           <div style={styles.orderList}>
-            {filteredOrders.length === 0 && <div style={styles.empty}>Belum ada pesanan yang sesuai.</div>}
+            {loading && <div style={styles.empty}>Memuat data banquet dari database...</div>}
+            {!loading && filteredOrders.length === 0 && <div style={styles.empty}>Belum ada pesanan yang sesuai.</div>}
             {filteredOrders.map((order) => (
               <div key={order.id} style={styles.orderRow}>
                 <div style={styles.orderMain}>

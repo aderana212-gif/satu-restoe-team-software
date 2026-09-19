@@ -53,7 +53,6 @@ export default function BarangTerpakaiPage() {
   const [form, setForm] = useState(initialForm);
   const [draftItems, setDraftItems] = useState<DraftItem[]>([newDraftItem(1)]);
   const [items, setItems] = useState<UsageItem[]>([]);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [nextDraftKey, setNextDraftKey] = useState(2);
   const [loading, setLoading] = useState(true);
@@ -175,15 +174,8 @@ export default function BarangTerpakaiPage() {
       setError("Gagal menghapus: " + deleteError.message);
       return;
     }
-    setSelectedIds((current) => current.filter((x) => x !== id));
     await loadItems();
   };
-
-  const selectedItems = useMemo(
-  const selectedItems = useMemo(
-    () => items.filter((item) => selectedIds.includes(item.id)),
-    [items, selectedIds]
-  );
 
   const laporanText = (data: UsageItem[]) => {
     const first = data[0];
@@ -361,9 +353,6 @@ export default function BarangTerpakaiPage() {
                     <div style={styles.itemList}>
                       {group.items.map((item) => (
                         <div key={item.id} style={styles.itemRow}>
-                          <div style={styles.itemCheck}>
-                            <input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => setSelectedIds((current) => current.includes(item.id) ? current.filter((x) => x !== item.id) : [...current, item.id])} />
-                          </div>
                           <div style={styles.itemMain}>
                             <strong>{item.nama_barang}</strong>
                             <span style={styles.muted}>{item.kategori || "Lainnya"} · {item.keterangan || "Tanpa catatan"}</span>
@@ -440,8 +429,7 @@ const styles: Record<string, React.CSSProperties> = {
   groupName: { display: "block", marginTop: 4, fontSize: 20 },
   groupCost: { color: "#173b3b", fontWeight: 900 },
   itemList: { marginTop: 14, borderTop: "1px solid #e2e8f0" },
-  itemRow: { display: "grid", gridTemplateColumns: "28px minmax(0,1fr) auto", alignItems: "start", gap: 10, padding: "13px 0", borderBottom: "1px solid #edf2f2" },
-  itemCheck: { display: "flex", justifyContent: "center" },
+  itemRow: { display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", alignItems: "start", gap: 10, padding: "13px 0", borderBottom: "1px solid #edf2f2" },
   itemMain: { minWidth: 0, display: "flex", flexDirection: "column", gap: 3 },
   itemQty: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, textAlign: "right" },
   itemActions: { gridColumn: "2 / -1", display: "flex", justifyContent: "flex-end", gap: 8, marginTop: -2 },

@@ -16,8 +16,6 @@ type Menu = {
   nama_menu: string;
   porsi: number;
   harga_jual: number;
-  profit_mode: "percent" | "rupiah";
-  profit_value: number;
 };
 
 type RecipeLine = {
@@ -145,7 +143,7 @@ export default function HppPage() {
           .order("id", { ascending: true }),
         supabase
           .from("hpp_menu")
-          .select("id, nama_menu, porsi, harga_jual, profit_mode, profit_value")
+          .select("id, nama_menu, porsi, harga_jual")
           .order("id", { ascending: true }),
         supabase
           .from("hpp_resep_detail")
@@ -180,8 +178,6 @@ export default function HppPage() {
       nama_menu: item.nama_menu,
       porsi: Number(item.porsi),
       harga_jual: Number(item.harga_jual),
-      profit_mode: item.profit_mode === "rupiah" ? "rupiah" : "percent",
-      profit_value: Number(item.profit_value ?? 30),
     }));
     const loadedRecipeLines = (recipeLinesResponse.data || []).map((item) => ({
       id: Number(item.id),
@@ -203,11 +199,6 @@ export default function HppPage() {
     setSelectedIngredientId((current) =>
       current || (loadedIngredients[0] ? String(loadedIngredients[0].id) : "")
     );
-    const activeMenu = loadedMenus.find((menu) => menu.id === selectedMenuId) || loadedMenus[0];
-    if (activeMenu) {
-      setProfitMode(activeMenu.profit_mode);
-      setProfitValue(String(activeMenu.profit_value ?? 30));
-    }
     setLoading(false);
   }
 
@@ -220,11 +211,8 @@ export default function HppPage() {
   function handleMenuSelect(value: string) {
     const id = Number(value);
     setSelectedMenuId(id);
-    const menu = menus.find((item) => item.id === id);
-    if (menu) {
-      setProfitMode(menu.profit_mode);
-      setProfitValue(String(menu.profit_value ?? 30));
-    }
+    setProfitMode("percent");
+    setProfitValue("30");
   }
 
   const selectedMenuLines = useMemo(
@@ -307,8 +295,8 @@ export default function HppPage() {
     setErrorMessage("");
     const { data, error } = await supabase
       .from("hpp_menu")
-      .insert({ nama_menu: menuName.trim(), porsi: portion, harga_jual: 0, profit_mode: "percent", profit_value: 30 })
-      .select("id, nama_menu, porsi, harga_jual, profit_mode, profit_value")
+      .insert({ nama_menu: menuName.trim(), porsi: portion, harga_jual: 0 })
+      .select("id, nama_menu, porsi, harga_jual")
       .single();
     if (error) {
       setErrorMessage(`Gagal menyimpan menu: ${error.message}`);
@@ -401,8 +389,6 @@ export default function HppPage() {
     setErrorMessage("");
     const { error } = await supabase.from("hpp_menu").update({
       harga_jual: calculatedSellingPrice,
-      profit_mode: profitMode,
-      profit_value: parsedProfit,
     }).eq("id", selectedMenuId);
     if (error) {
       setErrorMessage("Gagal menyimpan harga jual: " + error.message);

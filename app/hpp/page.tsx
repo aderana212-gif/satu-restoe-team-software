@@ -489,6 +489,7 @@ export default function HppPage() {
           <button onClick={addIngredient} disabled={saving} style={buttonStyle}>Simpan Bahan</button>
 
           <div style={{ color: "#667085", fontSize: "14px", marginTop: "14px", marginBottom: "8px", fontWeight: 600 }}>☝️ Geser tabel → untuk melihat info lainnya</div>
+          <div style={{ color: "#667085", fontSize: "14px", marginTop: "14px", marginBottom: "8px", fontWeight: 600 }}>☝️ Geser tabel → untuk melihat info lainnya</div>
           <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
             <table style={tableStyle}>
               <thead><tr><th style={cellStyle}>Nama Bahan</th><th style={cellStyle}>Satuan</th><th style={cellStyle}>Harga</th><th style={cellStyle}>Aksi</th></tr></thead>
@@ -514,6 +515,7 @@ export default function HppPage() {
           </div>
           <button onClick={addMenu} disabled={saving} style={buttonStyle}>Simpan Menu</button>
 
+          <div style={{ color: "#667085", fontSize: "14px", marginTop: "14px", marginBottom: "8px", fontWeight: 600 }}>☝️ Geser tabel → untuk melihat info lainnya</div>
           <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
             <table style={tableStyle}>
               <thead><tr><th style={cellStyle}>Menu</th><th style={cellStyle}>Porsi</th><th style={cellStyle}>Harga Jual</th><th style={cellStyle}>Aksi</th></tr></thead>
@@ -549,7 +551,8 @@ export default function HppPage() {
             </div>
             <button onClick={addRecipeLine} disabled={saving || ingredients.length === 0} style={buttonStyle}>Tambah ke Resep</button>
 
-            <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
+            <div style={{ color: "#667085", fontSize: "14px", marginTop: "14px", marginBottom: "8px", fontWeight: 600 }}>☝️ Geser tabel → untuk melihat info lainnya</div>
+          <div style={{ overflowX: "auto", marginTop: "20px", WebkitOverflowScrolling: "touch" }}>
               <table style={tableStyle}>
                 <thead><tr><th style={cellStyle}>Bahan</th><th style={cellStyle}>Jumlah</th><th style={cellStyle}>Biaya</th><th style={cellStyle}>Aksi</th></tr></thead>
                 <tbody>

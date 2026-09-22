@@ -131,7 +131,7 @@ export default function LaporanKasirPage() {
       omzet_bersih: omzetBersih,
     };
     if (!current.tanggal || !current.nama_kasir.trim()) { alert("Isi tanggal dan nama kasir terlebih dahulu."); return; }
-    window.location.href = `whatsapp://send?text=${encodeURIComponent(messageFromReport(current))}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(messageFromReport(current))}`, "_blank");
   };
 
   return (

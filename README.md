@@ -10,3 +10,5 @@ Sistem manajemen internal Satu Restoe.
 - Laporan Kasir
 
 Project ini menggunakan Next.js dan Supabase.
+
+<!-- Cloudflare Workers automatic deploy verification -->

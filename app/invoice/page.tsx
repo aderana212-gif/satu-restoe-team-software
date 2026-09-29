@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
+import { supabase } from "@/lib/supabase";
 
 const LOGO_IMAGE_URL = "/logo-satu-restoe.png";
 const SIGNATURE_IMAGE_URL = "/ttd-wida-novianti.png";
-const STORAGE_KEY = "satu-restoe-invoices-v2";
 
 type InvoiceItem = { description: string; qty: number; price: number };
 type SavedInvoice = {
@@ -41,7 +41,41 @@ export default function InvoicePage() {
   const [karaokeFree, setKaraokeFree] = useState(false), [liveMusic, setLiveMusic] = useState(false), [liveMusicPrice, setLiveMusicPrice] = useState(0);
   const [savedInvoices, setSavedInvoices] = useState<SavedInvoice[]>([]), [search, setSearch] = useState(""), [status, setStatus] = useState(""), [pdfBusy, setPdfBusy] = useState(false);
 
-  useEffect(() => { try { const stored = window.localStorage.getItem(STORAGE_KEY); if (stored) setSavedInvoices(JSON.parse(stored)); } catch { setSavedInvoices([]); } }, []);
+  useEffect(() => {
+    async function loadInvoices() {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("*")
+        .order("invoice_date", { ascending: false })
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error(error);
+        setStatus("Gagal memuat invoice dari Supabase.");
+        return;
+      }
+
+      setSavedInvoices((data || []).map((row) => ({
+        invoiceNo: row.invoice_no,
+        invoiceDate: row.invoice_date,
+        customer: row.customer_name,
+        address: row.customer_address,
+        phone: row.customer_phone,
+        venueDate: row.venue_date || "",
+        venueTime: row.venue_time || "",
+        location: row.venue_location || "Indoor",
+        tax: Number(row.tax || 0),
+        paid: Number(row.deposit || 0),
+        paidAfterEvent: Math.max(Number(row.total || 0) - Number(row.deposit || 0) - Number(row.remaining || 0), 0),
+        items: Array.isArray(row.items) ? row.items : [],
+        savedAt: row.updated_at || row.created_at,
+        karaokeFree: Boolean(row.karaoke),
+        liveMusic: Boolean(row.live_music),
+        liveMusicPrice: Number(row.live_music_fee || 0),
+      })));
+    }
+    loadInvoices();
+  }, []);
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.price || 0), 0), [items]);
   const facilityTotal = liveMusic ? Number(liveMusicPrice || 0) : 0;
   const orderAndFacilities = subtotal + facilityTotal;
@@ -79,10 +113,62 @@ export default function InvoicePage() {
   function updateItem(index: number, key: keyof InvoiceItem, value: string) { setItems(current => current.map((item, itemIndex) => itemIndex !== index ? item : key === "description" ? { ...item, description: value } : { ...item, [key]: Number(value) || 0 })); }
   function addItem() { setItems(current => [...current, { description: "", qty: 1, price: 0 }]); }
   function removeItem(index: number) { setItems(current => current.filter((_, itemIndex) => itemIndex !== index)); }
-  function saveInvoice() {
+  async function saveInvoice() {
     if (!invoiceNo.trim()) { setStatus("Nomor invoice wajib diisi."); return; }
-    const invoice: SavedInvoice = { invoiceNo, invoiceDate, customer, address, phone, venueDate, venueTime, location, tax, paid, paidAfterEvent, items, karaokeFree, liveMusic, liveMusicPrice, savedAt: new Date().toISOString() };
-    const next = [invoice, ...savedInvoices.filter(item => item.invoiceNo !== invoiceNo)]; setSavedInvoices(next); window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); setStatus("Invoice berhasil disimpan.");
+
+    const payload = {
+      invoice_no: invoiceNo.trim(),
+      invoice_date: invoiceDate,
+      customer_name: customer,
+      customer_address: address,
+      customer_phone: phone,
+      venue_date: venueDate || null,
+      venue_time: venueTime,
+      venue_location: location,
+      items,
+      karaoke: karaokeFree,
+      live_music: liveMusic,
+      live_music_fee: liveMusicPrice,
+      tax: Number(tax || 0),
+      subtotal,
+      total,
+      deposit: Number(paid || 0),
+      remaining,
+      payment_status: isPaidOff ? "Lunas" : "Belum Lunas",
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("invoices")
+      .upsert(payload, { onConflict: "invoice_no" });
+
+    if (error) {
+      console.error(error);
+      setStatus("Gagal menyimpan invoice ke Supabase: " + error.message);
+      return;
+    }
+
+    const invoice: SavedInvoice = {
+      invoiceNo,
+      invoiceDate,
+      customer,
+      address,
+      phone,
+      venueDate,
+      venueTime,
+      location,
+      tax,
+      paid,
+      paidAfterEvent,
+      items,
+      karaokeFree,
+      liveMusic,
+      liveMusicPrice,
+      savedAt: new Date().toISOString(),
+    };
+
+    setSavedInvoices(current => [invoice, ...current.filter(item => item.invoiceNo !== invoiceNo)]);
+    setStatus("Invoice berhasil disimpan ke Supabase.");
   }
   function loadInvoice(invoice: SavedInvoice) {
     setInvoiceNo(invoice.invoiceNo); setInvoiceDate(invoice.invoiceDate); setCustomer(invoice.customer); setAddress(invoice.address); setPhone(invoice.phone); setVenueDate(invoice.venueDate); setVenueTime(invoice.venueTime); setLocation(invoice.location); setTax(invoice.tax); setPaid(invoice.paid); setPaidAfterEvent(Number(invoice.paidAfterEvent || 0)); setItems(invoice.items); setKaraokeFree(Boolean(invoice.karaokeFree)); setLiveMusic(Boolean(invoice.liveMusic)); setLiveMusicPrice(Number(invoice.liveMusicPrice || 0)); setStatus(`Invoice ${invoice.invoiceNo} dibuka.`);

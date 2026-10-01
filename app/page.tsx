@@ -10,6 +10,7 @@ const modules = [
   { title: "Gudang & Inventaris", description: "Kelola master barang, stok, gudang, barang masuk, barang keluar, dan stock opname.", href: "/gudang", icon: "🏬", color: "#ecfeff" },
   { title: "Invoice Customer", description: "Buat invoice customer, hitung pesanan, fasilitas, uang muka, sisa pembayaran, dan simpan sebagai PDF.", href: "/invoice", icon: "🧾", color: "#f0fdfa" },
   { title: "Tugas Karyawan", description: "Buat checklist tugas, pantau pekerjaan karyawan, dan ajukan permohonan biaya operasional.", href: "/tugas-karyawan", icon: "✅", color: "#fef3c7" },
+  { title: "Slip Gaji", description: "Buat slip gaji karyawan, hitung bonus dan potongan kasbon, lalu simpan atau bagikan sebagai PDF.", href: "/slip-gaji", icon: "💳", color: "#eef2ff" },
 ];
 
 export default function Home() {

@@ -1,11 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 export default function AccessPage() {
-  const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") || "/";
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,6 +11,8 @@ export default function AccessPage() {
     event.preventDefault();
     setError("");
     setLoading(true);
+    const requestedNext = new URLSearchParams(window.location.search).get("next") || "/";
+    const nextPath = requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/";
     try {
       const response = await fetch("/api/akses", {
         method: "POST",

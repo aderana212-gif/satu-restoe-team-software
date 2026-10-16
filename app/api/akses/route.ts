@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 
+async function accessToken(secret: string) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode("satu-restoe-team-software-access-v1"),
+  );
+  return Array.from(new Uint8Array(signature))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export async function POST(request: NextRequest) {
   const secret = process.env.TEAM_SOFTWARE_PASSWORD;
   if (!secret) {
@@ -21,7 +39,7 @@ export async function POST(request: NextRequest) {
     ok: true,
     next: typeof body.next === "string" && body.next.startsWith("/") && !body.next.startsWith("//") ? body.next : "/",
   });
-  response.cookies.set("team_access", secret, {
+  response.cookies.set("team_access", await accessToken(secret), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
